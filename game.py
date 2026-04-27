@@ -336,6 +336,8 @@ def main():
                 if menu_result == "quit":
                     running = False
                     game_state = "quit"
+                elif menu_result == "start_game":
+                    game_state = "game"
                 elif menu_result == "level_select":
                     game_state = "level_select"
                 elif menu_result == "settings":
