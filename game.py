@@ -4,9 +4,16 @@ import math
 
 pygame.init()
 
-WIDTH, HEIGHT = 800, 600
+#设置窗口大小
+WIDTH, HEIGHT = 1000, 500
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("疯狂奶茶杯")
+
+menu_bg_img = pygame.image.load("f:/code/BCI_gane/奶茶店1.png").convert()
+menu_bg = pygame.transform.scale(menu_bg_img, (WIDTH, HEIGHT))
+
+game_bg_img = pygame.image.load("f:/code/BCI_gane/奶茶店2.png").convert()
+game_bg = pygame.transform.scale(game_bg_img, (WIDTH, HEIGHT))
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -24,14 +31,17 @@ BUTTON_COLORS = {
     "press": (219, 112, 147),
 }
 
-cup_img = pygame.image.load("f:/code/BCI_gane/cup.webp").convert_alpha()
+#加载图片资源
+cup_img = pygame.image.load("f:/code/BCI_gane/奶茶杯.png").convert_alpha()
 ingredient_img = pygame.image.load("f:/code/BCI_gane/小料.webp").convert_alpha()
 
-cup_width = 100
-cup_height = 120
+#调整奶茶杯大小
+cup_width = 60
+cup_height = 80
 cup_img = pygame.transform.scale(cup_img, (cup_width, cup_height))
 ingredient_img = pygame.transform.scale(ingredient_img, (50, 50))
 
+#设置字体路径和大小
 font_path = "C:/Windows/Fonts/simhei.ttf"
 title_font = pygame.font.Font(font_path, 56)
 button_font = pygame.font.Font(font_path, 32)
@@ -138,8 +148,6 @@ def show_menu():
     menu_running = True
     game_state = [None]
 
-    title = "疯狂奶茶杯"
-
     def start_game_click():
         game_state[0] = "start_game"
         nonlocal menu_running
@@ -156,45 +164,15 @@ def show_menu():
         menu_running = False
 
     buttons = [
-        Button(50, 200, 180, 50, "开始游戏", start_game_click),
-        Button(50, 270, 180, 50, "关卡选择", level_select_click),
-        Button(50, 340, 180, 50, "游戏设置", settings_click),
+        Button(200, 200, 180, 50, "开始游戏", start_game_click),
+        Button(200, 270, 180, 50, "关卡选择", level_select_click),
+        Button(200, 340, 180, 50, "游戏设置", settings_click),
     ]
-
-    particles = []
-    last_spawn = pygame.time.get_ticks()
 
     clock = pygame.time.Clock()
 
     while menu_running:
-        current_time = pygame.time.get_ticks()
-
-        screen.fill(bg_color)
-
-        for i in range(0, WIDTH, 40):
-            for j in range(0, HEIGHT, 40):
-                if (i // 40 + j // 40) % 2 == 0:
-                    pygame.draw.rect(screen, (255, 232, 205), (i, j, 40, 40))
-
-        if current_time - last_spawn > 100:
-            particles.append(Particle(random.randint(50, WIDTH - 50), HEIGHT + 20))
-            last_spawn = current_time
-
-        for p in particles[:]:
-            p.update()
-            p.draw(screen)
-            if p.life <= 0 or p.y > HEIGHT + 50:
-                particles.remove(p)
-
-        cup_bob = math.sin(current_time * 0.002) * 10
-        cup_y_offset = 80 + int(cup_bob)
-        screen.blit(cup_img, (WIDTH // 2 - 50, cup_y_offset))
-
-        title_surf = title_font.render(title, True, BROWN)
-        title_outline = title_font.render(title, True, WHITE)
-        title_rect = title_surf.get_rect(center=(WIDTH // 2, 40))
-        screen.blit(title_outline, (title_rect.x + 2, title_rect.y + 2))
-        screen.blit(title_surf, title_rect)
+        screen.blit(menu_bg, (0, 0))
 
         for button in buttons:
             mouse_pos = pygame.mouse.get_pos()
@@ -209,7 +187,6 @@ def show_menu():
                 if event.button == 1:
                     for button in buttons:
                         button.handle_click()
-
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     return "quit"
@@ -226,12 +203,12 @@ def show_level_select():
     font = pygame.font.Font(font_path, 32)
     title_surf = font.render("关卡选择", True, BROWN)
 
-    back_button = Button(WIDTH // 2 - 60, 500, 120, 50, "返回", None)
+    back_button = Button(WIDTH // 2 - 60, 380, 120, 50, "返回", None)
 
     clock = pygame.time.Clock()
 
     while select_running:
-        screen.fill(bg_color)
+        screen.blit(menu_bg, (0, 0))
 
         screen.blit(title_surf, (WIDTH // 2 - title_surf.get_width() // 2, 50))
 
@@ -263,12 +240,12 @@ def show_settings():
     font = pygame.font.Font(font_path, 32)
     title_surf = font.render("游戏设置", True, BROWN)
 
-    back_button = Button(WIDTH // 2 - 60, 500, 120, 50, "返回", None)
+    back_button = Button(WIDTH // 2 - 60, 380, 120, 50, "返回", None)
 
     clock = pygame.time.Clock()
 
     while settings_running:
-        screen.fill(bg_color)
+        screen.blit(menu_bg, (0, 0))
 
         screen.blit(title_surf, (WIDTH // 2 - title_surf.get_width() // 2, 50))
 
@@ -295,6 +272,7 @@ def show_settings():
 
 
 def main():
+    global screen
     game_state = "menu"
     clock = pygame.time.Clock()
     running = True
@@ -309,7 +287,7 @@ def main():
     collected = 0
 
     while running:
-        screen.fill(game_bg_color)
+        screen.blit(game_bg, (0, 0))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
