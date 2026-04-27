@@ -4,17 +4,12 @@ import math
 
 pygame.init()
 
-#设置窗口大小
+# 设置窗口大小
 WIDTH, HEIGHT = 1000, 500
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("疯狂奶茶杯")
 
-menu_bg_img = pygame.image.load("f:/code/BCI_gane/奶茶店1.png").convert()
-menu_bg = pygame.transform.scale(menu_bg_img, (WIDTH, HEIGHT))
-
-game_bg_img = pygame.image.load("f:/code/BCI_gane/奶茶店2.png").convert()
-game_bg = pygame.transform.scale(game_bg_img, (WIDTH, HEIGHT))
-
+# 颜色定义
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 PINK = (255, 182, 193)
@@ -23,25 +18,31 @@ BROWN = (139, 90, 43)
 CREAM = (255, 253, 208)
 DARK_PINK = (219, 112, 147)
 
-bg_color = (255, 218, 185)
-game_bg_color = (240, 240, 240)
 BUTTON_COLORS = {
     "normal": (255, 182, 193),
     "hover": (255, 105, 180),
     "press": (219, 112, 147),
 }
 
-#加载图片资源
-cup_img = pygame.image.load("f:/code/BCI_gane/奶茶杯.png").convert_alpha()
-ingredient_img = pygame.image.load("f:/code/BCI_gane/小料.webp").convert_alpha()
+menu_bg_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶店1.png").convert()
+menu_bg = pygame.transform.scale(menu_bg_img, (WIDTH, HEIGHT))
 
-#调整奶茶杯大小
+game_bg_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶店2.png").convert()
+game_bg = pygame.transform.scale(game_bg_img, (WIDTH, HEIGHT))
+
+# 加载图片资源
+cup_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶杯.png").convert_alpha()
+ingredient_img = pygame.image.load(
+    "f:/code/BCI_gane/游戏资源/imgs/小料.webp"
+).convert_alpha()
+
+# 调整奶茶杯大小
 cup_width = 60
 cup_height = 80
 cup_img = pygame.transform.scale(cup_img, (cup_width, cup_height))
 ingredient_img = pygame.transform.scale(ingredient_img, (50, 50))
 
-#设置字体路径和大小
+# 设置字体路径和大小
 font_path = "C:/Windows/Fonts/simhei.ttf"
 title_font = pygame.font.Font(font_path, 56)
 button_font = pygame.font.Font(font_path, 32)
