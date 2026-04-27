@@ -45,25 +45,15 @@ class Button:
         self.hovered = False
         self.pressed = False
         self.bob_offset = 0
-        self.bob_speed = 0
-        self.bob_amplitude = 0
 
     def update(self, mouse_pos, mouse_pressed):
         self.hovered = self.rect.collidepoint(mouse_pos)
         self.pressed = mouse_pressed and self.hovered
 
         if self.hovered:
-            self.bob_speed = 0.15
-            self.bob_amplitude = 3
+            self.bob_offset = 2
         else:
-            self.bob_speed = 0
-            self.bob_amplitude = 0
             self.bob_offset = 0
-
-        if self.bob_amplitude > 0:
-            self.bob_offset = (
-                math.sin(pygame.time.get_ticks() * 0.005) * self.bob_amplitude
-            )
 
     def draw(self, surface, y_offset=0):
         draw_rect = self.rect.copy()
@@ -75,12 +65,12 @@ class Button:
             else (BUTTON_COLORS["hover"] if self.hovered else BUTTON_COLORS["normal"])
         )
 
-        pygame.draw.rect(surface, BLACK, draw_rect.inflate(8, 8), border_radius=8)
-        pygame.draw.rect(surface, color, draw_rect, border_radius=8)
+        pygame.draw.rect(surface, BLACK, draw_rect, border_radius=0)
+        pygame.draw.rect(surface, color, draw_rect.inflate(-4, -4), border_radius=0)
 
-        pygame.draw.rect(surface, CREAM, draw_rect.inflate(-8, -8), 3, border_radius=6)
+        pygame.draw.rect(surface, WHITE, draw_rect.inflate(-8, -8), 2, border_radius=0)
 
-        text_surf = button_font.render(self.text, True, WHITE)
+        text_surf = button_font.render(self.text, True, BLACK)
         text_rect = text_surf.get_rect(center=draw_rect.center)
         surface.blit(text_surf, text_rect)
 
@@ -122,7 +112,7 @@ class Cup:
         mouse_x, mouse_y = pygame.mouse.get_pos()
         self.rect.centerx = mouse_x
         self.rect.bottom = HEIGHT - 50
-        self.bob_offset = math.sin(pygame.time.get_ticks() * 0.003) * 5
+        self.bob_offset = math.sin(pygame.time.get_ticks() * 0.003) * 2
 
     def draw(self, surface):
         draw_rect = self.rect.copy()
@@ -166,9 +156,9 @@ def show_menu():
         menu_running = False
 
     buttons = [
-        Button(WIDTH // 2 - 100, 250, 200, 60, "开始游戏", start_game_click),
-        Button(WIDTH // 2 - 100, 330, 200, 60, "关卡选择", level_select_click),
-        Button(WIDTH // 2 - 100, 410, 200, 60, "游戏设置", settings_click),
+        Button(50, 200, 180, 50, "开始游戏", start_game_click),
+        Button(50, 270, 180, 50, "关卡选择", level_select_click),
+        Button(50, 340, 180, 50, "游戏设置", settings_click),
     ]
 
     particles = []
@@ -317,12 +307,6 @@ def main():
     pygame.time.set_timer(SPAWN_EVENT, 2000)
 
     collected = 0
-
-    buttons = [
-        Button(WIDTH // 2 - 100, 250, 200, 60, "开始游戏", lambda: "start_game"),
-        Button(WIDTH // 2 - 100, 330, 200, 60, "关卡选择", lambda: "level_select"),
-        Button(WIDTH // 2 - 100, 410, 200, 60, "游戏设置", lambda: "settings"),
-    ]
 
     while running:
         screen.fill(game_bg_color)
