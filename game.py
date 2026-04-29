@@ -7,7 +7,7 @@ from pathlib import Path
 pygame.init()
 
 # 设置窗口大小
-WIDTH, HEIGHT = 1000, 500
+WIDTH, HEIGHT = 1000, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("疯狂奶茶杯")
 
@@ -137,7 +137,8 @@ class Cup:
     def update(self):
         mouse_x, mouse_y = pygame.mouse.get_pos()
         self.rect.centerx = mouse_x
-        self.rect.bottom = HEIGHT - 50
+        # 限制杯子位置
+        self.rect.bottom = HEIGHT - 14
         self.bob_offset = math.sin(pygame.time.get_ticks() * 0.003) * 2
 
     def draw(self, surface):
@@ -179,10 +180,11 @@ def show_menu():
         nonlocal menu_running
         menu_running = False
 
+    # 创建首页按钮
     buttons = [
-        Button(200, 200, 180, 50, "开始游戏", start_game_click),
-        Button(200, 270, 180, 50, "关卡选择", level_select_click),
-        Button(200, 340, 180, 50, "游戏设置", settings_click),
+        Button(80, 190, 180, 50, "开始游戏", start_game_click),
+        Button(80, 270, 180, 50, "关卡选择", level_select_click),
+        Button(80, 350, 180, 50, "游戏设置", settings_click),
     ]
 
     clock = pygame.time.Clock()
