@@ -3,11 +3,10 @@ import random
 import math
 import os
 from pathlib import Path
-
-from button import Button
+from GameComponents.button import Button
 from colors import *
-from cup import Cup
-from ingredient import Ingredient
+from GameComponents.cup import Cup
+from GameComponents.ingredient import Ingredient
 
 pygame.init()
 
