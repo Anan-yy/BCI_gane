@@ -4,6 +4,10 @@ from colors import PINK, PEACH, CREAM
 
 
 class Particle:
+    """
+    粒子类。
+    包含位置、速度、颜色和生命周期，用于模拟小料掉落时的粒子效果。
+    """
     def __init__(self, x, y):
         self.x = x
         self.y = y
