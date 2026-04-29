@@ -1,6 +1,8 @@
 import pygame
 import random
 import math
+import os
+from pathlib import Path
 
 pygame.init()
 
@@ -24,16 +26,19 @@ BUTTON_COLORS = {
     "press": (219, 112, 147),
 }
 
-menu_bg_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶店1.png").convert()
+# 获取脚本所在目录并构建图片资源的相对路径
+script_dir = Path(__file__).parent
+resource_path = script_dir / "游戏资源" / "imgs"
+menu_bg_img = pygame.image.load(resource_path / "奶茶店1.png").convert()
 menu_bg = pygame.transform.scale(menu_bg_img, (WIDTH, HEIGHT))
 
-game_bg_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶店2.png").convert()
+game_bg_img = pygame.image.load(resource_path / "奶茶店2.png").convert()
 game_bg = pygame.transform.scale(game_bg_img, (WIDTH, HEIGHT))
 
 # 加载图片资源
-cup_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶杯.png").convert_alpha()
+cup_img = pygame.image.load(resource_path / "奶茶杯.png").convert_alpha()
 ingredient_img = pygame.image.load(
-    "f:/code/BCI_gane/游戏资源/imgs/小料.webp"
+    resource_path / "小料.webp"
 ).convert_alpha()
 
 # 调整奶茶杯大小
@@ -43,9 +48,19 @@ cup_img = pygame.transform.scale(cup_img, (cup_width, cup_height))
 ingredient_img = pygame.transform.scale(ingredient_img, (50, 50))
 
 # 设置字体路径和大小
-font_path = "C:/Windows/Fonts/simhei.ttf"
-title_font = pygame.font.Font(font_path, 56)
-button_font = pygame.font.Font(font_path, 32)
+try:
+    font_path = os.path.join("C:", "Windows", "Fonts", "simhei.ttf")
+    if os.path.exists(font_path):
+        title_font = pygame.font.Font(font_path, 56)
+        button_font = pygame.font.Font(font_path, 32)
+    else:
+        # 如果黑体字体不存在，则使用默认字体
+        title_font = pygame.font.Font(None, 56)
+        button_font = pygame.font.Font(None, 32)
+except:
+    # 如果无法加载字体，则使用默认字体
+    title_font = pygame.font.Font(None, 56)
+    button_font = pygame.font.Font(None, 32)
 
 
 class Button:
