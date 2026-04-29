@@ -38,7 +38,13 @@ class Button:
 
         pygame.draw.rect(surface, (255, 255, 255), draw_rect.inflate(-8, -8), 2, border_radius=0)
 
-        text_surf = pygame.font.Font("C:/Windows/Fonts/simhei.ttf", 32).render(self.text, True, (0, 0, 0))
+        # 使用全局字体对象，避免硬编码路径导致的字体加载失败
+        from game import button_font
+        if button_font:
+            text_surf = button_font.render(self.text, True, (0, 0, 0))
+        else:
+            # 如果全局字体不可用，使用默认字体
+            text_surf = pygame.font.Font(None, 32).render(self.text, True, (0, 0, 0))
         text_rect = text_surf.get_rect(center=draw_rect.center)
         surface.blit(text_surf, text_rect)
 

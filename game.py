@@ -39,16 +39,18 @@ ingredient_img = pygame.transform.scale(ingredient_img, (50, 50))
 
 # 设置字体路径和大小
 try:
+    # 尝试加载系统字体（黑体）
     font_path = os.path.join("C:", "Windows", "Fonts", "simhei.ttf")
     if os.path.exists(font_path):
         title_font = pygame.font.Font(font_path, 56)
         button_font = pygame.font.Font(font_path, 32)
     else:
-        # 如果黑体字体不存在，则使用默认字体
+        # 如果黑体不存在，使用默认字体
         title_font = pygame.font.Font(None, 56)
         button_font = pygame.font.Font(None, 32)
-except:
-    # 如果无法加载字体，则使用默认字体
+except Exception as e:
+    # 如果加载失败，使用默认字体
+    print(f"字体加载失败: {e}")
     title_font = pygame.font.Font(None, 56)
     button_font = pygame.font.Font(None, 32)
 
@@ -187,7 +189,6 @@ def main():
     running = True
 
     cup = Cup(WIDTH // 2, HEIGHT - 50)
-    # 设置奶茶杯图片
     cup.image = cup_img
 
     ingredients = []
@@ -268,9 +269,12 @@ def main():
             for ing in ingredients:
                 ing.draw(screen)
 
-            font = pygame.font.Font(button_font.path if hasattr(button_font, 'path') else None, 24) if button_font else pygame.font.Font(None, 24)
-            speed_text = font.render(f"下落速度: {fall_speed:.2f}", True, (50, 50, 50))
-            score_text = font.render(f"已收集: {collected}", True, (50, 50, 50))
+        # 移动文字显示到外面，确保无论何时都会显示
+        if game_state == "game":
+            # 使用 button_font 或默认字体
+            font = button_font if button_font else pygame.font.Font(None, 24)
+            speed_text = font.render(f"下落速度: {fall_speed:.2f}", True, (0, 0, 0))  # 显式设置黑色
+            score_text = font.render(f"已收集: {collected}", True, (0, 0, 0))       # 显式设置黑色
             screen.blit(speed_text, (10, 10))
             screen.blit(score_text, (10, 50))
 
