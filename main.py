@@ -1,7 +1,7 @@
 """疯狂奶茶杯 - 第一周主程序"""
 
 import pygame
-from config import SCREEN_WIDTH, SCREEN_HEIGHT
+from config import SCREEN_WIDTH, SCREEN_HEIGHT, CHINESE_FONTS, IMAGES_DIR, ASSETS_DIR
 from game.sprites import Cup, Ingredient
 from game.ingredient_manager import IngredientManager
 from data.score_manager import ScoreManager
@@ -9,6 +9,27 @@ from bci.data_reader import BCIDataReader
 from bci.filter import DeadZoneFilter, ExponentialSmoothing
 import sys
 import time
+import os
+
+
+def load_chinese_font(size=36):
+    """加载支持中文的字体"""
+    # 先尝试项目内的字体
+    project_font = os.path.join(ASSETS_DIR, "fonts", "simhei.ttf")
+    if os.path.exists(project_font):
+        try:
+            return pygame.font.Font(project_font, size)
+        except:
+            pass
+
+    # 尝试系统字体
+    try:
+        return pygame.font.SysFont("simhei", size)
+    except:
+        pass
+
+    # 最后使用pygame默认字体
+    return pygame.font.Font(pygame.font.get_default_font(), size)
 
 
 def main():
@@ -40,29 +61,27 @@ def main():
     dead_zone = DeadZoneFilter(threshold=5)
     smooth_yaw = ExponentialSmoothing(alpha=0.3)
 
-    # 字体设置 - 优先使用项目内的字体文件，避免系统依赖
+    # 加载中文字体
+    font = load_chinese_font(36)
+    hint_font = load_chinese_font(20)
+    print("使用中文字体显示")
+
+    # 尝试加载背景图片
+    background = None
+    has_background = False
     try:
-        # 尝试使用项目内的字体文件
-        font = pygame.font.Font("fonts/default.ttf", 36)
-        hint_font = pygame.font.Font("fonts/default.ttf", 20)
-        print("使用项目内字体: fonts/default.ttf")
+        bg_path = os.path.join(IMAGES_DIR, "奶茶店1.png")
+        if os.path.exists(bg_path):
+            background = pygame.image.load(bg_path).convert()
+            background = pygame.transform.scale(
+                background, (SCREEN_WIDTH, SCREEN_HEIGHT)
+            )
+            has_background = True
+            print("已加载背景图片")
+        else:
+            print("未找到背景图片，使用纯色背景")
     except Exception as e:
-        print(f"加载项目字体失败: {e}")
-        try:
-            # 尝试常见字体
-            font = pygame.font.SysFont(
-                ["simhei", "microsoftyahei", "arial", "freesans"], 36
-            )
-            hint_font = pygame.font.SysFont(
-                ["simhei", "microsoftyahei", "arial", "freesans"], 20
-            )
-            print("使用系统字体")
-        except:
-            # 如果失败，使用pygame自带默认字体
-            default_font = pygame.font.get_default_font()
-            font = pygame.font.Font(default_font, 36)
-            hint_font = pygame.font.Font(default_font, 20)
-            print("使用pygame默认字体")
+        print(f"加载背景图片失败: {e}，使用纯色背景")
 
     # 设置必接食材（第一周只测试红茶）
     score_manager.set_required_ingredient("红茶")
@@ -109,7 +128,7 @@ def main():
 
             # 每5秒打印一次数据，减少输出
             if int(t) % 5 == 0 and time.time() - last_print_time >= 4.9:
-                print(f"[Sim] 专注力: {attention}, Yaw: {raw_yaw:.1f}")
+                print(f"[模拟] 专注力: {attention}, Yaw: {raw_yaw:.1f}")
                 last_print_time = time.time()
 
         # 对Yaw进行滤波
@@ -139,33 +158,35 @@ def main():
             print(f"接住 {hit.type}！分数: {score_manager.score}")
 
         # 绘制
-        screen.fill((255, 255, 255))
+        if has_background and background:
+            screen.blit(background, (0, 0))
+        else:
+            screen.fill((255, 255, 255))
+
         all_sprites.draw(screen)
         ingredients.draw(screen)
 
-        # 显示分数 - 确保文字可见
-        score_text = font.render(f"Score: {score_manager.score}", True, (0, 0, 0))
+        # 显示分数 - 中文显示
+        score_text = font.render(f"分数: {score_manager.score}", True, (0, 0, 0))
         screen.blit(score_text, (10, 10))
 
         # 显示控制模式
-        mode_str = "BCI Control" if use_yaw_control else "Keyboard"
-        mode_text = font.render(f"Mode: {mode_str}", True, (0, 100, 0))
+        mode_str = "头动控制" if use_yaw_control else "键盘控制"
+        mode_text = font.render(f"模式: {mode_str}", True, (0, 100, 0))
         screen.blit(mode_text, (10, 50))
 
         # 显示BCI数据（模拟模式提示）
         bci_text = font.render(
-            f"Att: {attention}  Yaw: {smoothed_yaw:.1f}", True, (100, 0, 0)
+            f"专注力: {attention}  头动: {smoothed_yaw:.1f}", True, (100, 0, 0)
         )
         screen.blit(bci_text, (10, 90))
 
         # 显示操作提示
         hint1 = hint_font.render(
-            "Arrow Keys: Move | Y: BCI Mode | K: Keyboard", True, (50, 50, 50)
+            "方向键: 移动杯子 | Y: 头动模式 | K: 键盘模式", True, (50, 50, 50)
         )
         screen.blit(hint1, (10, SCREEN_HEIGHT - 60))
-        hint2 = hint_font.render(
-            "Catch tea +10 points | No BCI device needed", True, (50, 50, 50)
-        )
+        hint2 = hint_font.render("接住红茶 +10分 | 无需BCI设备", True, (50, 50, 50))
         screen.blit(hint2, (10, SCREEN_HEIGHT - 40))
 
         pygame.display.flip()

@@ -6,10 +6,17 @@ from config import *
 class Cup(pygame.sprite.Sprite):
     def __init__(self, *groups):
         super().__init__(*groups)
-        self.image = pygame.Surface((CUP_WIDTH, CUP_HEIGHT), pygame.SRCALPHA)
-        # 绘制杯子形状
-        pygame.draw.rect(self.image, CUP_COLOR, (0, 0, CUP_WIDTH, CUP_HEIGHT))
-        pygame.draw.rect(self.image, WHITE, (5, 5, CUP_WIDTH - 10, CUP_HEIGHT - 10), 2)
+        # 尝试加载杯子图片，失败则用默认图形
+        try:
+            self.image = pygame.image.load(CUP_IMG).convert_alpha()
+            self.image = pygame.transform.scale(self.image, (CUP_WIDTH, CUP_HEIGHT))
+        except:
+            # 使用默认图形
+            self.image = pygame.Surface((CUP_WIDTH, CUP_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.rect(self.image, CUP_COLOR, (0, 0, CUP_WIDTH, CUP_HEIGHT))
+            pygame.draw.rect(
+                self.image, WHITE, (5, 5, CUP_WIDTH - 10, CUP_HEIGHT - 10), 2
+            )
         self.rect = self.image.get_rect()
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.bottom = SCREEN_HEIGHT - 10
@@ -36,14 +43,28 @@ class Ingredient(pygame.sprite.Sprite):
         super().__init__(*groups)
         self.type = ing_type
         self.is_required = is_required
-        self.image = pygame.Surface((INGREDIENT_SIZE, INGREDIENT_SIZE), pygame.SRCALPHA)
-        color = INGREDIENT_COLORS.get(ing_type, RED)
-        pygame.draw.circle(
-            self.image,
-            color,
-            (INGREDIENT_SIZE // 2, INGREDIENT_SIZE // 2),
-            INGREDIENT_SIZE // 2,
-        )
+        # 尝试加载食材图片，失败则用默认图形
+        try:
+            img_path = INGREDIENT_IMGS.get(ing_type)
+            if img_path:
+                self.image = pygame.image.load(img_path).convert_alpha()
+                self.image = pygame.transform.scale(
+                    self.image, (INGREDIENT_SIZE, INGREDIENT_SIZE)
+                )
+            else:
+                raise FileNotFoundError
+        except:
+            # 使用默认图形
+            self.image = pygame.Surface(
+                (INGREDIENT_SIZE, INGREDIENT_SIZE), pygame.SRCALPHA
+            )
+            color = INGREDIENT_COLORS.get(ing_type, RED)
+            pygame.draw.circle(
+                self.image,
+                color,
+                (INGREDIENT_SIZE // 2, INGREDIENT_SIZE // 2),
+                INGREDIENT_SIZE // 2,
+            )
         self.rect = self.image.get_rect()
         self.rect.x = random.randint(0, SCREEN_WIDTH - INGREDIENT_SIZE)
         self.rect.y = -INGREDIENT_SIZE

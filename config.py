@@ -1,10 +1,38 @@
 import pygame
+import os
 
 # 屏幕配置
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 FPS = 60
 TITLE = "疯狂奶茶杯 - 第1周"
+
+# 资源路径
+ASSETS_DIR = "assets"
+IMAGES_DIR = os.path.join(ASSETS_DIR, "images")
+SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")
+
+# 图片路径（后期导入图片时只需替换文件）
+BACKGROUND_IMG = os.path.join(IMAGES_DIR, "background.png")
+CUP_IMG = os.path.join(IMAGES_DIR, "cup.png")
+INGREDIENT_IMGS = {
+    "红茶": os.path.join(IMAGES_DIR, "tea.png"),
+    "牛奶": os.path.join(IMAGES_DIR, "milk.png"),
+    "珍珠": os.path.join(IMAGES_DIR, "pearl.png"),
+    "椰果": os.path.join(IMAGES_DIR, "coconut.png"),
+    "布丁": os.path.join(IMAGES_DIR, "pudding.png"),
+    "仙草": os.path.join(IMAGES_DIR, "grass_jelly.png"),
+    "秘方": os.path.join(IMAGES_DIR, "secret_recipe.png"),
+}
+
+# 支持中文的字体列表（按优先级）
+CHINESE_FONTS = [
+    "simhei.ttf",  # 黑体
+    "simkai.ttf",  # 楷体
+    "msyh.ttf",  # 微软雅黑
+    "msyhbd.ttf",  # 微软雅黑粗体
+    os.path.join(ASSETS_DIR, "fonts", "simhei.ttf"),  # 项目内字体
+]
 
 # 颜色
 WHITE = (255, 255, 255)
