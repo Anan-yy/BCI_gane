@@ -116,6 +116,8 @@ def main():
                     use_yaw_control = False
                     cup.yaw_control = False
                     print("切换到键盘控制模式")
+                elif event.key == pygame.K_ESCAPE:
+                    running = False
 
         # 读取BCI数据（模拟，无需真实设备）
         if bci_available:

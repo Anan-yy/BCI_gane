@@ -11,7 +11,7 @@ from GameComponents.ingredient import Ingredient
 pygame.init()
 
 # 设置窗口大小
-WIDTH, HEIGHT = 1000, 500
+WIDTH, HEIGHT = 1280, 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("疯狂奶茶杯")
 
@@ -26,9 +26,7 @@ game_bg = pygame.transform.scale(game_bg_img, (WIDTH, HEIGHT))
 
 # 加载图片资源
 cup_img = pygame.image.load(resource_path / "奶茶杯.png").convert_alpha()
-ingredient_img = pygame.image.load(
-    resource_path / "小料.webp"
-).convert_alpha()
+ingredient_img = pygame.image.load(resource_path / "小料.webp").convert_alpha()
 
 # 调整奶茶杯大小
 cup_width = 60
@@ -110,7 +108,11 @@ def show_menu():
 def show_level_select():
     select_running = True
 
-    font = pygame.font.Font(button_font.path if hasattr(button_font, 'path') else None, 32) if button_font else pygame.font.Font(None, 32)
+    font = (
+        pygame.font.Font(button_font.path if hasattr(button_font, "path") else None, 32)
+        if button_font
+        else pygame.font.Font(None, 32)
+    )
     title_surf = font.render("关卡选择", True, BROWN)
 
     back_button = Button(WIDTH // 2 - 60, 380, 120, 50, "返回", None)
@@ -147,7 +149,11 @@ def show_level_select():
 def show_settings():
     settings_running = True
 
-    font = pygame.font.Font(button_font.path if hasattr(button_font, 'path') else None, 32) if button_font else pygame.font.Font(None, 32)
+    font = (
+        pygame.font.Font(button_font.path if hasattr(button_font, "path") else None, 32)
+        if button_font
+        else pygame.font.Font(None, 32)
+    )
     title_surf = font.render("游戏设置", True, BROWN)
 
     back_button = Button(WIDTH // 2 - 60, 380, 120, 50, "返回", None)
@@ -272,8 +278,12 @@ def main():
         if game_state == "game":
             # 使用 button_font 或默认字体
             font = button_font if button_font else pygame.font.Font(None, 24)
-            speed_text = font.render(f"下落速度: {fall_speed:.2f}", True, (0, 0, 0))  # 显式设置黑色
-            score_text = font.render(f"已收集: {collected}", True, (0, 0, 0))       # 显式设置黑色
+            speed_text = font.render(
+                f"下落速度: {fall_speed:.2f}", True, (0, 0, 0)
+            )  # 显式设置黑色
+            score_text = font.render(
+                f"已收集: {collected}", True, (0, 0, 0)
+            )  # 显式设置黑色
             screen.blit(speed_text, (10, 10))
             screen.blit(score_text, (10, 50))
 
