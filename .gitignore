@@ -1,4 +1,8 @@
-+# Byte-compiled / optimized / DLL files
+# 忽略 Python 编译生成的字节码文件
+__pycache__/
+*.pyc
+>>>>>>> f0315dd9e6992de86c92c0e722954a3daba0ddae
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class

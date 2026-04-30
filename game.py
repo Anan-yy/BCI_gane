@@ -1,6 +1,12 @@
 import pygame
 import random
 import math
+import os
+from pathlib import Path
+from GameComponents.button import Button
+from colors import *
+from GameComponents.cup import Cup
+from GameComponents.ingredient import Ingredient
 
 pygame.init()
 
@@ -9,31 +15,19 @@ WIDTH, HEIGHT = 1000, 500
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("疯狂奶茶杯")
 
-# 颜色定义
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-PINK = (255, 182, 193)
-PEACH = (255, 218, 185)
-BROWN = (139, 90, 43)
-CREAM = (255, 253, 208)
-DARK_PINK = (219, 112, 147)
-
-BUTTON_COLORS = {
-    "normal": (255, 182, 193),
-    "hover": (255, 105, 180),
-    "press": (219, 112, 147),
-}
-
-menu_bg_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶店1.png").convert()
+# 获取脚本所在目录并构建图片资源的相对路径
+script_dir = Path(__file__).parent
+resource_path = script_dir / "游戏资源" / "imgs"
+menu_bg_img = pygame.image.load(resource_path / "奶茶店1.png").convert()
 menu_bg = pygame.transform.scale(menu_bg_img, (WIDTH, HEIGHT))
 
-game_bg_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶店2.png").convert()
+game_bg_img = pygame.image.load(resource_path / "奶茶店2.png").convert()
 game_bg = pygame.transform.scale(game_bg_img, (WIDTH, HEIGHT))
 
 # 加载图片资源
-cup_img = pygame.image.load("f:/code/BCI_gane/游戏资源/imgs/奶茶杯.png").convert_alpha()
+cup_img = pygame.image.load(resource_path / "奶茶杯.png").convert_alpha()
 ingredient_img = pygame.image.load(
-    "f:/code/BCI_gane/游戏资源/imgs/小料.webp"
+    resource_path / "小料.webp"
 ).convert_alpha()
 
 # 调整奶茶杯大小
@@ -43,106 +37,21 @@ cup_img = pygame.transform.scale(cup_img, (cup_width, cup_height))
 ingredient_img = pygame.transform.scale(ingredient_img, (50, 50))
 
 # 设置字体路径和大小
-font_path = "C:/Windows/Fonts/simhei.ttf"
-title_font = pygame.font.Font(font_path, 56)
-button_font = pygame.font.Font(font_path, 32)
-
-
-class Button:
-    def __init__(self, x, y, w, h, text, callback):
-        self.rect = pygame.Rect(x, y, w, h)
-        self.text = text
-        self.callback = callback
-        self.hovered = False
-        self.pressed = False
-        self.bob_offset = 0
-
-    def update(self, mouse_pos, mouse_pressed):
-        self.hovered = self.rect.collidepoint(mouse_pos)
-        self.pressed = mouse_pressed and self.hovered
-
-        if self.hovered:
-            self.bob_offset = 2
-        else:
-            self.bob_offset = 0
-
-    def draw(self, surface, y_offset=0):
-        draw_rect = self.rect.copy()
-        draw_rect.y += int(self.bob_offset) + y_offset
-
-        color = (
-            BUTTON_COLORS["press"]
-            if self.pressed
-            else (BUTTON_COLORS["hover"] if self.hovered else BUTTON_COLORS["normal"])
-        )
-
-        pygame.draw.rect(surface, BLACK, draw_rect, border_radius=0)
-        pygame.draw.rect(surface, color, draw_rect.inflate(-4, -4), border_radius=0)
-
-        pygame.draw.rect(surface, WHITE, draw_rect.inflate(-8, -8), 2, border_radius=0)
-
-        text_surf = button_font.render(self.text, True, BLACK)
-        text_rect = text_surf.get_rect(center=draw_rect.center)
-        surface.blit(text_surf, text_rect)
-
-    def handle_click(self):
-        if self.hovered and self.callback:
-            self.callback()
-
-
-class Particle:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.vx = random.uniform(-2, 2)
-        self.vy = random.uniform(-3, -1)
-        self.size = random.randint(3, 8)
-        self.color = random.choice([PINK, PEACH, CREAM])
-        self.life = random.randint(30, 60)
-
-    def update(self):
-        self.x += self.vx
-        self.y += self.vy
-        self.vy += 0.1
-        self.life -= 1
-
-    def draw(self, surface):
-        if self.life > 0:
-            pygame.draw.rect(
-                surface, self.color, (self.x, self.y, self.size, self.size)
-            )
-
-
-class Cup:
-    def __init__(self, x, y):
-        self.rect = pygame.Rect(x, y, 100, 120)
-        self.image = cup_img
-        self.bob_offset = 0
-
-    def update(self):
-        mouse_x, mouse_y = pygame.mouse.get_pos()
-        self.rect.centerx = mouse_x
-        self.rect.bottom = HEIGHT - 50
-        self.bob_offset = math.sin(pygame.time.get_ticks() * 0.003) * 2
-
-    def draw(self, surface):
-        draw_rect = self.rect.copy()
-        draw_rect.y += int(self.bob_offset)
-        surface.blit(self.image, draw_rect)
-
-
-class Ingredient:
-    def __init__(self, x, y):
-        self.rect = pygame.Rect(x, y, 50, 50)
-        self.image = ingredient_img
-        self.active = True
-
-    def update(self, speed):
-        if self.active:
-            self.rect.y += speed
-
-    def draw(self, surface):
-        surface.blit(self.image, self.rect)
+try:
+    # 尝试加载系统字体（黑体）
+    font_path = os.path.join("C:", "Windows", "Fonts", "simhei.ttf")
+    if os.path.exists(font_path):
+        title_font = pygame.font.Font(font_path, 56)
+        button_font = pygame.font.Font(font_path, 32)
+    else:
+        # 如果黑体不存在，使用默认字体
+        title_font = pygame.font.Font(None, 56)
+        button_font = pygame.font.Font(None, 32)
+except Exception as e:
+    # 如果加载失败，使用默认字体
+    print(f"字体加载失败: {e}")
+    title_font = pygame.font.Font(None, 56)
+    button_font = pygame.font.Font(None, 32)
 
 
 def show_menu():
@@ -165,9 +74,9 @@ def show_menu():
         menu_running = False
 
     buttons = [
-        Button(200, 200, 180, 50, "开始游戏", start_game_click),
-        Button(200, 270, 180, 50, "关卡选择", level_select_click),
-        Button(200, 340, 180, 50, "游戏设置", settings_click),
+        Button(80, 190, 180, 50, "开始游戏", start_game_click),
+        Button(80, 270, 180, 50, "关卡选择", level_select_click),
+        Button(80, 350, 180, 50, "游戏设置", settings_click),
     ]
 
     clock = pygame.time.Clock()
@@ -201,7 +110,7 @@ def show_menu():
 def show_level_select():
     select_running = True
 
-    font = pygame.font.Font(font_path, 32)
+    font = pygame.font.Font(button_font.path if hasattr(button_font, 'path') else None, 32) if button_font else pygame.font.Font(None, 32)
     title_surf = font.render("关卡选择", True, BROWN)
 
     back_button = Button(WIDTH // 2 - 60, 380, 120, 50, "返回", None)
@@ -238,7 +147,7 @@ def show_level_select():
 def show_settings():
     settings_running = True
 
-    font = pygame.font.Font(font_path, 32)
+    font = pygame.font.Font(button_font.path if hasattr(button_font, 'path') else None, 32) if button_font else pygame.font.Font(None, 32)
     title_surf = font.render("游戏设置", True, BROWN)
 
     back_button = Button(WIDTH // 2 - 60, 380, 120, 50, "返回", None)
@@ -279,6 +188,8 @@ def main():
     running = True
 
     cup = Cup(WIDTH // 2, HEIGHT - 50)
+    cup.image = cup_img
+
     ingredients = []
     fall_speed = 3.0
 
@@ -325,7 +236,9 @@ def main():
             elif game_state == "game":
                 if event.type == SPAWN_EVENT:
                     x = random.randint(50, WIDTH - 50)
-                    ingredients.append(Ingredient(x, -50))
+                    new_ingredient = Ingredient(x, -50)
+                    new_ingredient.image = ingredient_img
+                    ingredients.append(new_ingredient)
                 elif event.type == pygame.MOUSEWHEEL:
                     fall_speed = max(1.0, min(10.0, fall_speed + event.y))
                 elif event.type == pygame.KEYDOWN:
@@ -355,9 +268,12 @@ def main():
             for ing in ingredients:
                 ing.draw(screen)
 
-            font = pygame.font.Font(font_path, 24)
-            speed_text = font.render(f"下落速度: {fall_speed:.2f}", True, (50, 50, 50))
-            score_text = font.render(f"已收集: {collected}", True, (50, 50, 50))
+        # 移动文字显示到外面，确保无论何时都会显示
+        if game_state == "game":
+            # 使用 button_font 或默认字体
+            font = button_font if button_font else pygame.font.Font(None, 24)
+            speed_text = font.render(f"下落速度: {fall_speed:.2f}", True, (0, 0, 0))  # 显式设置黑色
+            score_text = font.render(f"已收集: {collected}", True, (0, 0, 0))       # 显式设置黑色
             screen.blit(speed_text, (10, 10))
             screen.blit(score_text, (10, 50))
 
