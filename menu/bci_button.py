@@ -51,7 +51,7 @@ class BCIModeButton(MenuItem):
         pulse = math.sin(self.pulse_t) * 0.5 + 0.5
         glow_alpha = int(60 + pulse * 80)
 
-        glow_size = int(10 + pulse * 15)
+        glow_size = int(5 + pulse * 8)
         glow_surf = pygame.Surface(
             (self.rect.width + glow_size * 2, self.rect.height + glow_size * 2),
             pygame.SRCALPHA,
