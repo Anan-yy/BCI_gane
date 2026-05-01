@@ -24,6 +24,7 @@ from bci.data_reader import BCIDataReader
 from bci.filter import DeadZoneFilter, ExponentialSmoothing, AttentionMappingCurve
 from menu import MainMenu, GameSettingsScreen
 from menu.screens.bci_settings import BCISettingsScreen
+from menu.splash import SplashScreen
 import sys
 import time
 import os
@@ -511,6 +512,11 @@ def main():
     icon_path = os.path.join(IMAGES_DIR, "other", "游戏图标.png")
     if os.path.exists(icon_path):
         pygame.display.set_icon(pygame.image.load(icon_path))
+
+    # 播放启动动画
+    splash_font = load_chinese_font(110)
+    SplashScreen(screen, splash_font).run()
+
     clock = pygame.time.Clock()
 
     while True:
