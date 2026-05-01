@@ -108,6 +108,44 @@ class SplashEffect:
             screen.blit(s, (p["x"] - 5, p["y"] - 5))
 
 
+class MissEffect:
+    """食材掉落/未接住的失败特效"""
+
+    def __init__(self, x, y, color):
+        self.particles = []
+        # 粒子向下及四周扩散
+        for _ in range(12):
+            angle = random.uniform(-0.2, math.pi + 0.2)  # 主要是下半圆
+            speed = random.uniform(2, 5)
+            self.particles.append(
+                {
+                    "x": x,
+                    "y": y,
+                    "vx": math.cos(angle) * speed,
+                    "vy": math.sin(angle) * speed,
+                    "life": 1.0,
+                    "size": random.randint(3, 6),
+                }
+            )
+        self.color = color
+
+    def update(self):
+        for p in self.particles:
+            p["x"] += p["vx"]
+            p["y"] += p["vy"]
+            p["vy"] += 0.1  # 重力
+            p["life"] -= 0.04
+        self.particles = [p for p in self.particles if p["life"] > 0]
+        return len(self.particles) > 0
+
+    def draw(self, screen):
+        for p in self.particles:
+            s = pygame.Surface((p["size"], p["size"]), pygame.SRCALPHA)
+            alpha = int(p["life"] * 255)
+            s.fill((*self.color, alpha))
+            screen.blit(s, (p["x"] - p["size"] // 2, p["y"] - p["size"] // 2))
+
+
 class StartTransition:
     """游戏开始过渡动画"""
 
@@ -133,10 +171,14 @@ class StartTransition:
             except:
                 pass
 
+        # 生成食材
         self.spawn_timer = 0
+        # 每150ms生成一个食材，最多18个
         self.spawn_interval = 150
+        # 当前已生成食材数
         self.ingredient_count = 0
-        self.max_ingredients = 18
+        # 最大生成食材数
+        self.max_ingredients = 25
 
         # 加载游戏背景
         self.game_background = None
@@ -152,6 +194,7 @@ class StartTransition:
         # 动画状态控制
         self.phase = "falling"  # falling -> returning -> done
         self.return_start_time = 0
+        self.miss_effects = []  # 失败特效列表
 
     def run(self):
         while True:
@@ -207,11 +250,22 @@ class StartTransition:
             self.ingredient_count += 1
 
         # 更新食材和溅射效果
+        # 判定线：杯子高度的 4/5 处
+        cup_h = self.cup_img.get_height() if self.cup_img else 200
+        threshold_y = self.cup_y + cup_h * 0.3  # 中心 + 0.3高度 = 顶部 + 0.8高度
+
+        # 判定宽度：杯子宽度
+        cup_w = self.cup_img.get_width() if self.cup_img else 160
+
         caught_list = []
         for ing in self.ingredients:
             if ing.update():
                 caught_list.append(ing)
                 self.splash_effects.append(SplashEffect(ing.x, self.cup_y, ing.color))
+            elif ing.y > threshold_y and abs(ing.x - self.cup_x) < cup_w / 2:
+                # 没接住：触发失败特效
+                self.miss_effects.append(MissEffect(ing.x, threshold_y, ing.color))
+                caught_list.append(ing)
             elif ing.y > SCREEN_HEIGHT + 50:
                 caught_list.append(ing)
 
@@ -222,10 +276,15 @@ class StartTransition:
         active_effects = [e for e in self.splash_effects if e.update()]
         self.splash_effects = active_effects
 
+        # 更新失败特效
+        self.miss_effects = [e for e in self.miss_effects if e.update()]
+
         # 绘制
         for ing in self.ingredients:
             ing.draw(self.screen)
         for effect in self.splash_effects:
+            effect.draw(self.screen)
+        for effect in self.miss_effects:
             effect.draw(self.screen)
 
         if self.cup_img:
@@ -237,6 +296,7 @@ class StartTransition:
             self.ingredient_count >= self.max_ingredients
             and not self.ingredients
             and not self.splash_effects
+            and not self.miss_effects
         ):
             self.phase = "returning"
             self.return_start_time = pygame.time.get_ticks()
