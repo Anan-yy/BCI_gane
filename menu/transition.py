@@ -192,8 +192,10 @@ class StartTransition:
                 pass
 
         # 动画状态控制
-        self.phase = "falling"  # falling -> returning -> done
+        self.phase = "falling"  # falling -> returning -> flashing -> done
         self.return_start_time = 0
+        self.flash_start_time = 0
+        self.flash_duration = 500  # 闪黑持续 0.5 秒
         self.miss_effects = []  # 失败特效列表
 
     def run(self):
@@ -222,9 +224,11 @@ class StartTransition:
             elif self.phase == "returning":
                 done = self._update_returning()
                 if done:
-                    # 回归结束，绘制最终帧并返回
-                    self._draw_final_frame()
-                    pygame.display.flip()
+                    self.phase = "flashing"
+                    self.flash_start_time = pygame.time.get_ticks()
+            elif self.phase == "flashing":
+                done = self._update_flashing()
+                if done:
                     return
 
             pygame.display.flip()
@@ -302,15 +306,13 @@ class StartTransition:
             self.return_start_time = pygame.time.get_ticks()
 
     def _update_returning(self):
-        """回归阶段：杯子缩小并移动到游戏初始位置，背景渐变到游戏场景"""
+        """回归阶段：杯子缩小并移动到游戏初始位置，保持动画背景"""
         elapsed_return = pygame.time.get_ticks() - self.return_start_time
         duration = 1500  # 回归动画持续1.5秒
         t = min(elapsed_return / duration, 1.0)
         ease = 1 - (1 - t) * (1 - t)
 
         # 目标位置：与游戏初始位置完全一致
-        # 游戏中杯子: rect.centerx = SCREEN_WIDTH // 2, rect.bottom = SCREEN_HEIGHT - 10
-        # 杯子高度100，所以中心y = SCREEN_HEIGHT - 10 - 50 = SCREEN_HEIGHT - 60
         game_cup_x = SCREEN_WIDTH // 2
         game_cup_y = SCREEN_HEIGHT - 60
 
@@ -322,16 +324,8 @@ class StartTransition:
         w = int(160 * (current_scale / 2.0))
         h = int(200 * (current_scale / 2.0))
 
-        # 绘制桃色背景
+        # 绘制桃色背景 (保持不变，不渐变到游戏背景)
         self.screen.fill((255, 228, 181))
-
-        # 渐变显现游戏背景
-        if self.game_background:
-            bg_alpha = int(ease * 255)
-            bg_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            bg_overlay.blit(self.game_background, (0, 0))
-            bg_overlay.fill((255, 228, 181, 255 - bg_alpha))
-            self.screen.blit(bg_overlay, (0, 0))
 
         # 绘制杯子
         if self.orig_cup_img:
@@ -344,6 +338,46 @@ class StartTransition:
             self.cup_y = game_cup_y
             return True
         return False
+
+    def _update_flashing(self):
+        """闪黑阶段：背景淡入淡出黑屏，杯子保持可见"""
+        elapsed = pygame.time.get_ticks() - self.flash_start_time
+        duration = 1200  # 总时长 1.2 秒 (0.6s 变黑 + 0.6s 变亮)
+        t = min(elapsed / duration, 1.0)
+
+        # 计算遮罩透明度：0 -> 255 -> 0
+        show_game_bg = False
+        if t < 0.5:
+            overlay_alpha = int((t * 2) * 255)
+            base_bg = (255, 228, 181)  # 前半程：桃色背景
+        else:
+            overlay_alpha = int((1.0 - (t - 0.5) * 2) * 255)
+            # 后半程：使用游戏背景 (如果在黑屏期间切换)
+            if self.game_background:
+                self.screen.blit(self.game_background, (0, 0))
+                base_bg = None
+                show_game_bg = True
+            else:
+                base_bg = (255, 228, 181)
+
+        # 1. 绘制背景 (若非全黑)
+        if not show_game_bg:
+            self.screen.fill(base_bg)
+
+        # 2. 绘制黑色遮罩 (中)
+        if overlay_alpha > 0:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            overlay.fill((0, 0, 0))
+            overlay.set_alpha(overlay_alpha)
+            self.screen.blit(overlay, (0, 0))
+
+        # 3. 绘制杯子 (顶) - 确保在黑屏中杯子依然可见
+        if self.orig_cup_img:
+            final_img = pygame.transform.scale(self.orig_cup_img, (80, 100))
+            rect = final_img.get_rect(center=(self.cup_x, self.cup_y))
+            self.screen.blit(final_img, rect)
+
+        return t >= 1.0
 
     def _draw_final_frame(self):
         """绘制最终帧：完整游戏背景+杯子"""
