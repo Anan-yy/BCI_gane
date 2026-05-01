@@ -27,7 +27,12 @@ SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")  # 音效资源目录
 # 新增图片时只需将文件放入 images 目录，然后在此处添加路径即可
 # ============================================================
 BACKGROUND_IMG = os.path.join(IMAGES_DIR, "background.png")  # 背景图
-CUP_IMG = os.path.join(IMAGES_DIR, "cup.png")  # 杯子图片
+CUP_LEVEL_IMGS = [  # 不同等级的杯子图片列表
+    os.path.join(IMAGES_DIR, "cup1.png"),
+    os.path.join(IMAGES_DIR, "cup2.png"),
+    os.path.join(IMAGES_DIR, "cup3.png"),
+]
+FOCUS_TEAPOT_IMG = os.path.join(IMAGES_DIR, "focus_teapot.png")  # 专注力茶壶 UI 图片
 INGREDIENT_IMGS = {  # 食材图片字典
     "红茶": os.path.join(IMAGES_DIR, "tea.png"),
     "牛奶": os.path.join(IMAGES_DIR, "milk.png"),

@@ -3,6 +3,7 @@
 """
 
 import pygame
+import math
 from config import (
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
@@ -12,6 +13,7 @@ from config import (
     INGREDIENT_COLORS,
     GAME_MODES,
     DEFAULT_GAME_MODE,
+    FOCUS_TEAPOT_IMG,
 )
 from game.sprites import Cup, Ingredient, CatchEffect, Particle
 from game.ingredient_manager import IngredientManager
@@ -49,6 +51,129 @@ def load_chinese_font(size=36):
         pass
 
     return pygame.font.Font(pygame.font.get_default_font(), size)
+
+
+class FocusTeapotUI:
+    """专注力茶壶 UI - 液面高度代表专注力数值（0-100）"""
+
+    def __init__(self, image_path=None, x=10, y=90, width=100, height=120):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.focus_value = 0
+        self._liquid_color = (144, 238, 144)
+        self._teapot_img = None
+
+        if image_path and os.path.exists(image_path):
+            try:
+                self._teapot_img = pygame.image.load(image_path).convert_alpha()
+                self._teapot_img = pygame.transform.scale(
+                    self._teapot_img, (self.width, self.height)
+                )
+            except:
+                pass
+
+    def update(self, value):
+        """更新专注力数值并计算当前液体颜色"""
+        self.focus_value = max(0, min(100, value))
+        t = self.focus_value / 100.0
+        r = int(144 + (255 - 144) * t)
+        g = int(238 + (215 - 238) * t)
+        b = int(144 + (0 - 144) * t)
+        self._liquid_color = (r, g, b)
+
+    def draw(self, screen):
+        """绘制茶壶 UI"""
+        if self._teapot_img:
+            screen.blit(self._teapot_img, (self.x, self.y))
+        else:
+            self._draw_fallback(screen)
+
+    def _draw_fallback(self, screen):
+        """无图片时的备用绘制方案"""
+        cx = self.x + self.width // 2
+        cy = self.y + self.height // 2
+        body_r = self.width * 0.38
+
+        # 1. 壶把手 (右侧)
+        handle_rect = pygame.Rect(
+            cx + body_r - 5, cy - body_r * 0.6, self.width * 0.35, body_r * 1.2
+        )
+        pygame.draw.rect(screen, (139, 69, 19), handle_rect, 6, border_radius=10)
+
+        # 2. 壶嘴 (左侧)
+        spout_pts = [
+            (cx - body_r + 5, cy - body_r * 0.2),
+            (cx - body_r - self.width * 0.35, cy - body_r * 0.8),
+            (cx - body_r - self.width * 0.25, cy - body_r * 0.6),
+            (cx - body_r + 5, cy + body_r * 0.4),
+        ]
+        pygame.draw.polygon(screen, (139, 69, 19), spout_pts, 6)
+
+        # 3. 壶身轮廓 & 液体裁剪区域
+        body_rect = pygame.Rect(cx - body_r, cy - body_r, body_r * 2, body_r * 2)
+
+        # 4. 液体 (裁剪在壶身内)
+        liquid_h = body_rect.height * (self.focus_value / 100.0)
+        if liquid_h > 0:
+            liquid_rect = pygame.Rect(
+                body_rect.x,
+                body_rect.y + body_rect.height - liquid_h,
+                body_rect.width,
+                liquid_h,
+            )
+            # 绘制液体背景
+            clip_surf = pygame.Surface(
+                (body_rect.width, body_rect.height), pygame.SRCALPHA
+            )
+            pygame.draw.ellipse(
+                clip_surf, (255, 255, 255), (0, 0, body_rect.width, body_rect.height)
+            )
+            pygame.draw.rect(
+                clip_surf,
+                self._liquid_color,
+                (0, body_rect.height - liquid_h, body_rect.width, liquid_h),
+            )
+
+            # 液面高光
+            if liquid_h > 4:
+                pygame.draw.line(
+                    clip_surf,
+                    (255, 255, 255),
+                    (4, body_rect.height - liquid_h + 2),
+                    (body_rect.width - 4, body_rect.height - liquid_h + 2),
+                    2,
+                )
+
+            screen.blit(clip_surf, (body_rect.x, body_rect.y))
+
+        # 5. 壶身边框 & 背景 (半透明壶身效果)
+        glass_surf = pygame.Surface(
+            (body_rect.width, body_rect.height), pygame.SRCALPHA
+        )
+        pygame.draw.ellipse(
+            glass_surf, (200, 200, 200, 80), (0, 0, body_rect.width, body_rect.height)
+        )
+        screen.blit(glass_surf, (body_rect.x, body_rect.y))
+        pygame.draw.ellipse(screen, (139, 69, 19), body_rect, 6)
+
+        # 6. 壶盖 (顶部)
+        lid_rect = pygame.Rect(cx - body_r * 0.8, cy - body_r - 10, body_r * 1.6, 14)
+        pygame.draw.rect(screen, (139, 69, 19), lid_rect, 6, border_radius=8)
+        knob_rect = pygame.Rect(cx - 8, cy - body_r - 18, 16, 10)
+        pygame.draw.ellipse(screen, (160, 82, 45), knob_rect)
+
+        # 7. 数值文字
+        font = pygame.font.Font(None, 28)
+        val_surf = font.render(f"{int(self.focus_value)}", True, (255, 255, 255))
+        screen.blit(
+            val_surf,
+            (
+                body_rect.x + (body_rect.width - val_surf.get_width()) // 2,
+                body_rect.y + body_rect.height // 2 - val_surf.get_height() // 2,
+            ),
+        )
 
 
 def show_menu(screen):
@@ -135,6 +260,14 @@ def run_game(screen, clock, game_mode="regular"):
     running = True
     use_yaw_control = False
     last_print_time = time.time()
+
+    # 专注力茶壶 UI (仅在图片存在时启用)
+    teapot_img_path = FOCUS_TEAPOT_IMG if os.path.exists(FOCUS_TEAPOT_IMG) else None
+    focus_teapot = None
+    if teapot_img_path:
+        focus_teapot = FocusTeapotUI(
+            image_path=teapot_img_path, x=10, y=90, width=120, height=140
+        )
 
     # 根据模式设置下落速度
     from config import INGREDIENT_SPEED
@@ -234,6 +367,8 @@ def run_game(screen, clock, game_mode="regular"):
             else:
                 score_manager.score += 10
 
+            cup.update_level(score_manager.score)
+
             print(f"接住 {hit.type}！分数: {score_manager.score}")
 
         # === 渲染画面 ===
@@ -255,26 +390,34 @@ def run_game(screen, clock, game_mode="regular"):
         mode_text = font.render(f"{mode_name}", True, (100, 50, 150))
         screen.blit(mode_text, (10, 50))
 
-        # BCI/专注力信息
+        # 专注力茶壶 UI 更新与绘制
+        if focus_teapot:
+            if attention is not None:
+                focus_teapot.update(attention)
+            else:
+                focus_teapot.update(0)
+            focus_teapot.draw(screen)
+
+        # BCI/专注力信息 (文字辅助显示)
         if bci_mode and attention is not None:
             if free_combine and attention_curve:
                 multiplier = attention_curve.map_attention(attention)
                 tier = attention_curve.get_rating_tier(attention)
-                bci_text = font.render(
-                    f"专注力: {attention} ({tier} x{multiplier:.2f})",
+                bci_text = hint_font.render(
+                    f"{tier} x{multiplier:.2f}",
                     True,
-                    (0, 150, 200),
+                    (255, 255, 255),
                 )
             else:
-                bci_text = font.render(
-                    f"专注力: {attention}  头动: {smoothed_yaw:.1f}",
+                bci_text = hint_font.render(
+                    f"头动: {smoothed_yaw:.1f}",
                     True,
-                    (0, 150, 200),
+                    (255, 255, 255),
                 )
-            screen.blit(bci_text, (10, 90))
+            screen.blit(bci_text, (10, 235))
         elif bci_mode and attention is None:
-            bci_text = font.render("BCI设备未连接", True, (200, 0, 0))
-            screen.blit(bci_text, (10, 90))
+            bci_text = hint_font.render("BCI设备未连接", True, (200, 0, 0))
+            screen.blit(bci_text, (10, 235))
 
         # 创意模式配方显示
         if free_combine and recipe_result:

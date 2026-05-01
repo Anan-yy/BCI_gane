@@ -20,19 +20,30 @@ class Cup(pygame.sprite.Sprite):
     def __init__(self, *groups):
         super().__init__(*groups)
         self._moving = False
-        # 加载杯子图片，失败则使用默认矩形
-        try:
-            self._orig_image = pygame.image.load(CUP_IMG).convert_alpha()
-            self._orig_image = pygame.transform.scale(
-                self._orig_image,
-                (CUP_WIDTH, CUP_HEIGHT),  # CUP_WIDTH/CUP_HEIGHT 控制杯子尺寸
-            )
-        except:
-            self._orig_image = pygame.Surface((CUP_WIDTH, CUP_HEIGHT), pygame.SRCALPHA)
-            pygame.draw.rect(self._orig_image, CUP_COLOR, (0, 0, CUP_WIDTH, CUP_HEIGHT))
-            pygame.draw.rect(
-                self._orig_image, WHITE, (5, 5, CUP_WIDTH - 10, CUP_HEIGHT - 10), 2
-            )
+        self._level_images = []
+        self._current_level = 0
+
+        # 加载所有等级的杯子图片
+        for path in CUP_LEVEL_IMGS:
+            try:
+                img = pygame.image.load(path).convert_alpha()
+                img = pygame.transform.scale(img, (CUP_WIDTH, CUP_HEIGHT))
+                self._level_images.append(img)
+            except:
+                # 如果某张图片加载失败，使用默认矩形代替
+                fallback = pygame.Surface((CUP_WIDTH, CUP_HEIGHT), pygame.SRCALPHA)
+                pygame.draw.rect(fallback, CUP_COLOR, (0, 0, CUP_WIDTH, CUP_HEIGHT))
+                pygame.draw.rect(
+                    fallback, WHITE, (5, 5, CUP_WIDTH - 10, CUP_HEIGHT - 10), 2
+                )
+                self._level_images.append(fallback)
+
+        if not self._level_images:
+            fallback = pygame.Surface((CUP_WIDTH, CUP_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.rect(fallback, CUP_COLOR, (0, 0, CUP_WIDTH, CUP_HEIGHT))
+            self._level_images.append(fallback)
+
+        self._orig_image = self._level_images[0]
         self.image = self._orig_image
         self.rect = self.image.get_rect()
         self.rect.centerx = SCREEN_WIDTH // 2  # 初始 X 位置：屏幕水平居中
@@ -45,6 +56,19 @@ class Cup(pygame.sprite.Sprite):
         self._tilt = 0.0  # 当前倾斜角度（度），移动时杯子会微微倾斜
         self._bounce_t = -1.0  # 弹跳进度 (0~1)，-1 表示无弹跳动画
         self._bounce_dur = 0.2  # 弹跳持续时间（秒），值越小弹跳越快
+
+    def update_level(self, score):
+        """根据分数切换杯子等级图片"""
+        if score >= 100:
+            new_level = 2
+        elif score >= 50:
+            new_level = 1
+        else:
+            new_level = 0
+
+        if new_level != self._current_level and new_level < len(self._level_images):
+            self._current_level = new_level
+            self._orig_image = self._level_images[self._current_level]
 
     def trigger_bounce(self):
         """触发接住食材时的弹跳动画"""
