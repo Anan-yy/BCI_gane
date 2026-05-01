@@ -78,6 +78,69 @@ class Cup(pygame.sprite.Sprite):
         self.rect = new_rect
 
 
+class Particle(pygame.sprite.Sprite):
+    def __init__(self, x, y, color, *groups):
+        super().__init__(*groups)
+        self.color = color
+        size = random.randint(3, 8)
+        self.image = pygame.Surface((size, size), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, color, (size // 2, size // 2), size // 2)
+        self.rect = self.image.get_rect(center=(x, y))
+        angle = random.uniform(0, 2 * math.pi)
+        speed = random.uniform(2, 6)
+        self.vx = math.cos(angle) * speed
+        self.vy = math.sin(angle) * speed - 2
+        self.life = 1.0
+        self.decay = random.uniform(2.0, 3.5)
+
+    def update(self, dt=0.016):
+        self.life -= self.decay * dt
+        if self.life <= 0:
+            self.kill()
+            return
+        self.rect.x += self.vx
+        self.rect.y += self.vy
+        self.vy += 0.15
+        self.image.set_alpha(int(self.life * 255))
+
+
+class CatchEffect(pygame.sprite.Sprite):
+    def __init__(self, ingredient, cup_rect, *groups):
+        super().__init__(*groups)
+        self.image = ingredient.image.copy()
+        self.rect = self.image.get_rect(center=ingredient.rect.center)
+        self._target = (cup_rect.centerx, cup_rect.centery - cup_rect.height // 4)
+        self._start_x = self.rect.centerx
+        self._start_y = self.rect.centery
+        self._start_image = self.image.copy()
+        self._t = 0.0
+        self._duration = 0.3
+        self._done = False
+        self.type = ingredient.type
+
+    def update(self, dt=0.016):
+        self._t += dt / self._duration
+        if self._t >= 1.0:
+            self._done = True
+            self.kill()
+            return
+
+        ease = self._t * self._t
+        self.rect.centerx = int(
+            self._start_x + (self._target[0] - self._start_x) * ease
+        )
+        self.rect.centery = int(
+            self._start_y + (self._target[1] - self._start_y) * ease
+        )
+
+        shrink = 1.0 - ease * 0.8
+        w = int(self._start_image.get_width() * shrink)
+        h = int(self._start_image.get_height() * shrink)
+        if w > 0 and h > 0:
+            self.image = pygame.transform.scale(self._start_image, (w, h))
+            self.rect.size = (w, h)
+
+
 class Ingredient(pygame.sprite.Sprite):
     def __init__(self, ing_type, is_required=False, *groups):
         super().__init__(*groups)

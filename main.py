@@ -1,8 +1,15 @@
 """疯狂奶茶杯 - 第一周主程序"""
 
 import pygame
-from config import SCREEN_WIDTH, SCREEN_HEIGHT, CHINESE_FONTS, IMAGES_DIR, ASSETS_DIR
-from game.sprites import Cup, Ingredient
+from config import (
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    CHINESE_FONTS,
+    IMAGES_DIR,
+    ASSETS_DIR,
+    INGREDIENT_COLORS,
+)
+from game.sprites import Cup, Ingredient, CatchEffect, Particle
 from game.ingredient_manager import IngredientManager
 from data.score_manager import ScoreManager
 from bci.data_reader import BCIDataReader
@@ -45,6 +52,10 @@ def main():
 
     # 食材组
     ingredients = pygame.sprite.Group()
+
+    # 接住特效组
+    catch_effects = pygame.sprite.Group()
+    particles = pygame.sprite.Group()
 
     # 分数管理器
     score_manager = ScoreManager()
@@ -138,10 +149,11 @@ def main():
         smoothed_yaw = smooth_yaw.smooth(filtered_yaw)
 
         # 更新杯子位置
+        dt_sec = dt / 1000.0
         if use_yaw_control:
-            cup.update(yaw=smoothed_yaw, dt=dt / 1000.0)
+            cup.update(yaw=smoothed_yaw, dt=dt_sec)
         else:
-            cup.update(keys=keys, dt=dt / 1000.0)
+            cup.update(keys=keys, dt=dt_sec)
 
         # 生成食材
         ingredient = ingredient_manager.update(required_types=["红茶"])
@@ -150,11 +162,17 @@ def main():
 
         # 更新食材位置
         ingredients.update()
+        catch_effects.update(dt=dt_sec)
+        particles.update(dt=dt_sec)
 
         # 碰撞检测
-        hits = pygame.sprite.spritecollide(cup, ingredients, False)
+        hits = pygame.sprite.spritecollide(cup, ingredients, True)
         for hit in hits:
-            hit.kill()
+            effect = CatchEffect(hit, cup.rect)
+            catch_effects.add(effect)
+            for _ in range(8):
+                color = INGREDIENT_COLORS.get(hit.type, (255, 200, 0))
+                particles.add(Particle(hit.rect.centerx, hit.rect.centery, color))
             cup.trigger_bounce()
             score_manager.score += 10
             print(f"接住 {hit.type}！分数: {score_manager.score}")
@@ -167,6 +185,8 @@ def main():
 
         all_sprites.draw(screen)
         ingredients.draw(screen)
+        catch_effects.draw(screen)
+        particles.draw(screen)
 
         # 显示分数 - 中文显示
         score_text = font.render(f"分数: {score_manager.score}", True, (0, 0, 0))
