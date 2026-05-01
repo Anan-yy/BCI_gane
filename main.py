@@ -15,6 +15,7 @@ from config import (
     DEFAULT_GAME_MODE,
     FOCUS_TEAPOT_IMG,
     BACKGROUND_IMG,
+    GAME_DURATION,
 )
 from game.sprites import Cup, Ingredient, CatchEffect, Particle, MissEffect
 from game.ingredient_manager import IngredientManager
@@ -26,6 +27,7 @@ from menu import MainMenu, GameSettingsScreen
 from menu.screens.bci_settings import BCISettingsScreen
 from menu.splash import SplashScreen
 from menu.transition import StartTransition
+from menu.summary import SummaryScreen
 import sys
 import time
 import os
@@ -261,8 +263,11 @@ def run_game(screen, clock, game_mode="regular"):
 
     # === 游戏状态变量 ===
     running = True
+    show_summary = False  # 标记是否显示结算界面
     use_yaw_control = False
     last_print_time = time.time()
+    game_start_time = pygame.time.get_ticks()
+    focus_samples = []  # 记录专注力数据用于结算
 
     # 专注力茶壶 UI (仅在图片存在时启用)
     teapot_img_path = FOCUS_TEAPOT_IMG if os.path.exists(FOCUS_TEAPOT_IMG) else None
@@ -328,7 +333,9 @@ def run_game(screen, clock, game_mode="regular"):
                     use_yaw_control = False
                     cup.yaw_control = False
                 elif event.key == pygame.K_ESCAPE:
-                    return "menu"
+                    show_summary = True
+                    running = False
+                    break
 
         # === 获取控制信号 ===
         if bci_available:
@@ -353,6 +360,16 @@ def run_game(screen, clock, game_mode="regular"):
             cup.update(yaw=smoothed_yaw, dt=dt_sec)
         else:
             cup.update(keys=keys, dt=dt_sec)
+
+        # === 计时与专注力记录 ===
+        elapsed_ms = pygame.time.get_ticks() - game_start_time
+        if elapsed_ms >= GAME_DURATION * 1000:
+            show_summary = True
+            running = False  # 时间到，触发结算
+            break
+
+        if attention is not None:
+            focus_samples.append(attention)
 
         # === 生成并更新食材 ===
         required = ["红茶"] if has_required else None
@@ -514,6 +531,17 @@ def run_game(screen, clock, game_mode="regular"):
         screen.blit(hint1, (10, SCREEN_HEIGHT - 40))
 
         pygame.display.flip()
+
+    # === 游戏结束结算逻辑 ===
+    if show_summary:
+        # 计算平均专注力
+        avg_focus = sum(focus_samples) / len(focus_samples) if focus_samples else 0.0
+        # 键盘模式/非BCI模式强制专注力为 0
+        if not bci_mode:
+            avg_focus = 0.0
+
+        summary = SummaryScreen(screen, score_manager.score, avg_focus, game_mode)
+        return summary.run()
 
     return "quit"
 
