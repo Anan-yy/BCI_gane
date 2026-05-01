@@ -240,12 +240,21 @@ class Ingredient(pygame.sprite.Sprite):
                 INGREDIENT_SIZE // 2,
             )
         self.rect = self.image.get_rect()
-        self.rect.x = random.randint(0, SCREEN_WIDTH - INGREDIENT_SIZE)  # 随机水平位置
-        self.rect.y = -INGREDIENT_SIZE  # 从屏幕顶部上方开始
-        self.speed = INGREDIENT_SPEED  # 下落速度（像素/帧），在 config.py 中定义
+        self.rect.x = random.randint(0, SCREEN_WIDTH - INGREDIENT_SIZE)
+        self.rect.y = -INGREDIENT_SIZE
+        self.speed = INGREDIENT_SPEED
+        self._float_t = random.uniform(0, 6.28)
+        self._base_centerx = self.rect.centerx
+        self._orig_image = self.image.copy()
 
     def update(self):
-        """更新食材位置，超出屏幕底部后自动销毁"""
+        self._float_t += 0.05
         self.rect.y += self.speed
+        self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
+
+        angle = math.cos(self._float_t) * 8
+        self.image = pygame.transform.rotate(self._orig_image, angle)
+        self.rect = self.image.get_rect(center=self.rect.center)
+
         if self.rect.top > SCREEN_HEIGHT:
             self.kill()
