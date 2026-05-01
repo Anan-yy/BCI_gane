@@ -19,7 +19,7 @@ from config import (
 
 
 class MenuItem:
-    """菜单按钮组件，支持鼠标悬停动画效果"""
+    """菜单按钮组件，支持鼠标悬停动画和点击粒子效果"""
 
     def __init__(
         self,
@@ -30,7 +30,7 @@ class MenuItem:
         bg_color,
         hover_color,
         text_color,
-        padding=(40, 12),
+        padding=(60, 18),
         radius=20,
     ):
         self.text = text
@@ -48,10 +48,15 @@ class MenuItem:
 
         self.hovered = False
         self.scale_t = 0.0
+        self.click_t = 0.0
+        self.click_particles = []
 
     def update(self, dt=0.016):
         target = 1.0 if self.hovered else 0.0
         self.scale_t += (target - self.scale_t) * 0.15
+        if self.click_t > 0:
+            self.click_t -= dt * 3
+        self.click_particles = [p for p in self.click_particles if p.update(dt)]
 
     def draw(self, screen):
         s = 1.0 + 0.06 * self.scale_t
@@ -62,17 +67,39 @@ class MenuItem:
         color = self.hover_color if self.hovered else self.bg_color
         self._draw_rounded_rect(surf, (0, 0, w, h), color, int(self.radius * s))
 
+        if self.click_t > 0:
+            click_color = (*color, int(self.click_t * 100))
+            self._draw_rounded_rect(
+                surf, (0, 0, w, h), click_color, int(self.radius * s)
+            )
+
         tw = self._text_surf.get_width()
         th = self._text_surf.get_height()
         surf.blit(self._text_surf, ((w - tw) // 2, (h - th) // 2))
 
         screen.blit(surf, (self.rect.centerx - w // 2, self.rect.centery - h // 2))
 
+        for p in self.click_particles:
+            p.draw(screen)
+
+    def trigger_click(self):
+        """触发点击粒子效果"""
+        self.click_t = 1.0
+        for _ in range(15):
+            self.click_particles.append(
+                ClickParticle(self.rect.centerx, self.rect.centery, self.bg_color)
+            )
+        for _ in range(8):
+            self.click_particles.append(
+                ClickParticle(self.rect.centerx, self.rect.centery, (255, 255, 255))
+            )
+
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
             self.hovered = self.rect.collidepoint(event.pos)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
+                self.trigger_click()
                 return True
         return False
 
@@ -460,7 +487,7 @@ class MainMenu:
         ]
 
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
-        btn_spacing = 85
+        btn_spacing = 110
         start_y = cy + 40
 
         self.start_btn = MenuItem(
