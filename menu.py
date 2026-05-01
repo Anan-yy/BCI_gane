@@ -146,7 +146,6 @@ class MainMenu:
         self.result = None
 
         self.bg = self._load_bg()
-        self.steam_particles = []
         self.floating_items = [
             FloatingItem(SCREEN_WIDTH, SCREEN_HEIGHT, c)
             for c in list(INGREDIENT_COLORS.values()) + [(255, 180, 100)] * 3
@@ -191,24 +190,11 @@ class MainMenu:
         self.title_y = 100
         self.title_phase = 0.0
 
-        cup_x = cx
-        cup_y = SCREEN_HEIGHT - 160
-        self.cup_img = self._load_cup()
-        self.cup_pos = (cup_x, cup_y)
-        self.cup_steam_spawn = 0
-
     def _load_bg(self):
         path = os.path.join(IMAGES_DIR, "奶茶店1.png")
         if os.path.exists(path):
             img = pygame.image.load(path).convert()
             return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        return None
-
-    def _load_cup(self):
-        path = os.path.join(IMAGES_DIR, "cup.png")
-        if os.path.exists(path):
-            img = pygame.image.load(path).convert_alpha()
-            return pygame.transform.scale(img, (100, 130))
         return None
 
     def run(self):
@@ -260,15 +246,6 @@ class MainMenu:
 
         self.title_phase += dt * 2
 
-        self.cup_steam_spawn += dt
-        if self.cup_steam_spawn > 0.08:
-            self.cup_steam_spawn = 0
-            cx = self.cup_pos[0] + random.randint(20, 80)
-            cy = self.cup_pos[1] + 10
-            self.steam_particles.append(SteamParticle(cx, cy))
-
-        self.steam_particles = [p for p in self.steam_particles if p.update()]
-
     def _draw(self, dt):
         if self.bg:
             self.screen.blit(self.bg, (0, 0))
@@ -297,14 +274,6 @@ class MainMenu:
         )
         sw = sub_surf.get_width()
         self.screen.blit(sub_surf, ((SCREEN_WIDTH - sw) // 2, ty + 60))
-
-        if self.cup_img:
-            cup_x = self.cup_pos[0]
-            cup_y = self.cup_pos[1] + math.sin(self.title_phase * 0.7) * 5
-            self.screen.blit(self.cup_img, (cup_x, cup_y))
-
-        for p in self.steam_particles:
-            p.draw(self.screen)
 
         for btn in self.buttons:
             btn.draw(self.screen)
