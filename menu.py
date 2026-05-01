@@ -16,6 +16,7 @@ from config import (
     INGREDIENT_COLORS,
     GAME_MODES,
 )
+from bci.config import load_bci_config, save_bci_config
 
 
 class MenuItem:
@@ -142,6 +143,115 @@ class ClickParticle:
         screen.blit(surf, (int(self.x) - self.size, int(self.y) - self.size))
 
 
+class BCIModeButton(MenuItem):
+    """脑机接口模式按钮 - 带有特殊脉冲动画和发光效果以突出显示"""
+
+    def __init__(self, text, x, y, font, title_font):
+        self.text = text
+        self.font = font
+        self.title_font = title_font
+        self.bg_color = (0, 120, 180)
+        self.hover_color = (0, 160, 220)
+        self.text_color = (255, 255, 255)
+        self.padding = (50, 18)
+        self.radius = 25
+
+        self._text_surf = title_font.render("脑机接口", True, (255, 255, 255))
+        w = self._text_surf.get_width() + self.padding[0] * 2
+        h = self._text_surf.get_height() + self.padding[1] * 2
+        self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
+
+        self.hovered = False
+        self.scale_t = 0.0
+        self.click_t = 0.0
+        self.click_particles = []
+        self.pulse_t = 0.0
+        self.glow_particles = []
+
+    def update(self, dt=0.016):
+        target = 1.0 if self.hovered else 0.0
+        self.scale_t += (target - self.scale_t) * 0.15
+        if self.click_t > 0:
+            self.click_t -= dt * 3
+        self.click_particles = [p for p in self.click_particles if p.update(dt)]
+
+        self.pulse_t += dt * 3
+        if self.hovered and random.random() < 0.3:
+            angle = random.uniform(0, 2 * math.pi)
+            r = random.uniform(self.rect.width / 2, self.rect.width / 2 + 20)
+            px = self.rect.centerx + math.cos(angle) * r
+            py = self.rect.centery + math.sin(angle) * r
+            self.glow_particles.append(ClickParticle(px, py, (0, 180, 255)))
+        self.glow_particles = [p for p in self.glow_particles if p.update(dt)]
+
+    def draw(self, screen):
+        pulse = math.sin(self.pulse_t) * 0.5 + 0.5
+        glow_alpha = int(60 + pulse * 80)
+
+        glow_size = int(10 + pulse * 15)
+        glow_surf = pygame.Surface(
+            (self.rect.width + glow_size * 2, self.rect.height + glow_size * 2),
+            pygame.SRCALPHA,
+        )
+        pygame.draw.rect(
+            glow_surf,
+            (0, 150, 200, glow_alpha),
+            (0, 0, glow_surf.get_width(), glow_surf.get_height()),
+            border_radius=self.radius + glow_size,
+        )
+        screen.blit(
+            glow_surf,
+            (
+                self.rect.x - glow_size,
+                self.rect.y - glow_size,
+            ),
+        )
+
+        s = 1.0 + 0.08 * self.scale_t + pulse * 0.02
+        w = int(self.rect.width * s)
+        h = int(self.rect.height * s)
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+
+        color = self.hover_color if self.hovered else self.bg_color
+        border_color = (100, 220, 255) if self.hovered else (0, 180, 255)
+        pygame.draw.rect(surf, color, (0, 0, w, h), border_radius=int(self.radius * s))
+        pygame.draw.rect(
+            surf,
+            border_color,
+            (0, 0, w, h),
+            3,
+            border_radius=int(self.radius * s),
+        )
+
+        if self.click_t > 0:
+            click_color = (*color, int(self.click_t * 150))
+            pygame.draw.rect(
+                surf, click_color, (0, 0, w, h), border_radius=int(self.radius * s)
+            )
+
+        tw = self._text_surf.get_width()
+        th = self._text_surf.get_height()
+        surf.blit(self._text_surf, ((w - tw) // 2, (h - th) // 2))
+
+        screen.blit(surf, (self.rect.centerx - w // 2, self.rect.centery - h // 2))
+
+        for p in self.glow_particles:
+            p.draw(screen)
+        for p in self.click_particles:
+            p.draw(screen)
+
+    def trigger_click(self):
+        self.click_t = 1.0
+        for _ in range(25):
+            self.click_particles.append(
+                ClickParticle(self.rect.centerx, self.rect.centery, (0, 180, 255))
+            )
+        for _ in range(12):
+            self.click_particles.append(
+                ClickParticle(self.rect.centerx, self.rect.centery, (255, 255, 255))
+            )
+
+
 class ModePreviewDisplay:
     """
     模式预览显示框 - 鼠标靠近时在按钮右侧显示三个模式按键样式
@@ -169,6 +279,7 @@ class ModePreviewDisplay:
             "regular": ((60, 160, 100), (80, 200, 120)),
             "challenge": ((200, 80, 60), (240, 100, 80)),
             "creative": ((120, 80, 200), (150, 110, 240)),
+            "bci": ((0, 120, 180), (0, 150, 220)),
         }
 
     def update(self, dt=0.016):
@@ -433,6 +544,312 @@ class SteamParticle:
             screen.blit(surf, (int(self.x) - self.size, int(self.y) - self.size))
 
 
+class TextInputBox:
+    """文本输入框 - 用于BCI设置页面的IP和端口输入"""
+
+    def __init__(self, x, y, w, h, font, default_text="", label="", max_length=20):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.font = font
+        self.label = label
+        self.text = default_text
+        self.max_length = max_length
+        self.active = False
+        self.color_inactive = (100, 100, 100)
+        self.color_active = (0, 150, 200)
+        self.color = self.color_inactive
+        self.blink_t = 0.0
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.active = self.rect.collidepoint(event.pos)
+            self.color = self.color_active if self.active else self.color_inactive
+        elif event.type == pygame.KEYDOWN and self.active:
+            if event.key == pygame.K_RETURN:
+                self.active = False
+                self.color = self.color_inactive
+            elif event.key == pygame.K_BACKSPACE:
+                self.text = self.text[:-1]
+            elif len(self.text) < self.max_length:
+                char = event.unicode
+                if char.isprintable():
+                    self.text += char
+
+    def update(self, dt):
+        self.blink_t += dt * 4
+
+    def draw(self, screen):
+        label_surf = self.font.render(self.label, True, (200, 200, 200))
+        screen.blit(label_surf, (self.rect.x, self.rect.y - 30))
+
+        pygame.draw.rect(screen, self.color, self.rect, 2, border_radius=8)
+
+        bg_color = (*self.color[:3], 30) if self.active else (40, 40, 50, 50)
+        surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(surf, bg_color, (0, 0, *self.rect.size), border_radius=8)
+        screen.blit(surf, self.rect.topleft)
+
+        text_surf = self.font.render(self.text, True, (255, 255, 255))
+        screen.blit(text_surf, (self.rect.x + 10, self.rect.y + 5))
+
+        if self.active and int(self.blink_t) % 2 == 0:
+            cursor_x = self.rect.x + 10 + text_surf.get_width()
+            pygame.draw.line(
+                screen,
+                (255, 255, 255),
+                (cursor_x, self.rect.y + 8),
+                (cursor_x, self.rect.y + self.rect.h - 8),
+                2,
+            )
+
+    def get_text(self):
+        return self.text
+
+
+class BCISettingsScreen:
+    """BCI连接设置页面"""
+
+    def __init__(self, screen, font, title_font):
+        self.screen = screen
+        self.font = font
+        self.title_font = title_font
+        self.clock = pygame.time.Clock()
+        self.running = True
+
+        bci_config = load_bci_config()
+
+        self.ip_input = TextInputBox(
+            SCREEN_WIDTH // 2 - 150,
+            SCREEN_HEIGHT // 2 - 40,
+            300,
+            40,
+            font,
+            default_text=bci_config["server_ip"],
+            label="服务器IP:",
+        )
+        self.port_input = TextInputBox(
+            SCREEN_WIDTH // 2 - 150,
+            SCREEN_HEIGHT // 2 + 40,
+            300,
+            40,
+            font,
+            default_text=str(bci_config["server_port"]),
+            label="端口号:",
+        )
+
+        self.test_btn = MenuItem(
+            "测试连接",
+            SCREEN_WIDTH // 2 - 120,
+            SCREEN_HEIGHT // 2 + 130,
+            font,
+            (0, 120, 180),
+            (0, 150, 220),
+            (255, 255, 255),
+            padding=(50, 15),
+            radius=15,
+        )
+        self.back_btn = MenuItem(
+            "返回",
+            SCREEN_WIDTH // 2 - 60,
+            SCREEN_HEIGHT // 2 + 210,
+            font,
+            (80, 80, 80),
+            (100, 100, 100),
+            (255, 255, 255),
+            padding=(50, 15),
+            radius=15,
+        )
+
+        self.status_text = ""
+        self.status_color = (255, 255, 255)
+        self.testing = False
+        self.test_result = None
+
+    def run(self):
+        """运行设置页面，返回 (result, ip, port)"""
+        while self.running:
+            dt = self.clock.tick(60) / 1000.0
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    self.result = "quit"
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self._save_and_close()
+                else:
+                    self.ip_input.handle_event(event)
+                    self.port_input.handle_event(event)
+                    if self.test_btn.handle_event(event):
+                        self._test_connection()
+                    if self.back_btn.handle_event(event):
+                        self._save_and_close()
+
+            self._update(dt)
+            self._draw()
+            pygame.display.flip()
+
+        return self.result
+
+    def _save_and_close(self):
+        """保存配置并关闭"""
+        ip = self.ip_input.get_text()
+        try:
+            port = int(self.port_input.get_text())
+            save_bci_config(ip, port)
+            self.status_text = "配置已保存"
+            self.status_color = (100, 255, 100)
+        except ValueError:
+            self.status_text = "端口号格式错误，未保存"
+            self.status_color = (255, 100, 100)
+            return
+
+        pygame.display.flip()
+        pygame.time.wait(500)
+        self.running = False
+        self.result = "back"
+
+    def _test_connection(self):
+        """测试BCI连接"""
+        ip = self.ip_input.get_text()
+        try:
+            port = int(self.port_input.get_text())
+        except ValueError:
+            self.status_text = "端口号格式错误"
+            self.status_color = (255, 100, 100)
+            return
+
+        self.status_text = "正在连接..."
+        self.status_color = (255, 255, 100)
+        pygame.display.flip()
+
+        from bci.data_reader import BCIDataReader
+
+        reader = BCIDataReader()
+        connected = reader.connect(ip, port)
+        reader.disconnect()
+
+        if connected:
+            self.status_text = "连接成功！"
+            self.status_color = (100, 255, 100)
+        else:
+            self.status_text = "连接失败，请检查IP和端口"
+            self.status_color = (255, 100, 100)
+
+    def _update(self, dt):
+        self.ip_input.update(dt)
+        self.port_input.update(dt)
+        self.test_btn.update(dt)
+        self.back_btn.update(dt)
+
+    def _draw(self):
+        self.screen.fill((30, 30, 40))
+
+        title = self.title_font.render("脑机接口设置", True, (255, 255, 255))
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 80))
+
+        desc = self.font.render("配置科创平台TCP服务器连接参数", True, (180, 180, 180))
+        self.screen.blit(desc, (SCREEN_WIDTH // 2 - desc.get_width() // 2, 130))
+
+        self.ip_input.draw(self.screen)
+        self.port_input.draw(self.screen)
+
+        self.test_btn.draw(self.screen)
+        self.back_btn.draw(self.screen)
+
+        if self.status_text:
+            status = self.font.render(self.status_text, True, self.status_color)
+            self.screen.blit(
+                status,
+                (SCREEN_WIDTH // 2 - status.get_width() // 2, SCREEN_HEIGHT // 2 + 180),
+            )
+
+        hint = self.font.render("ESC 返回主菜单", True, (100, 100, 100))
+        self.screen.blit(
+            hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2, SCREEN_HEIGHT - 50)
+        )
+
+
+class GameSettingsScreen:
+    """游戏设置页面，包含BCI设置等子设置项"""
+
+    def __init__(self, screen, font, title_font):
+        self.screen = screen
+        self.font = font
+        self.title_font = title_font
+        self.clock = pygame.time.Clock()
+        self.running = True
+        self.result = None
+
+        cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+
+        self.bci_btn = BCIModeButton(
+            "BCI设置",
+            cx,
+            cy - 40,
+            font,
+            title_font,
+        )
+        self.back_btn = MenuItem(
+            "返回",
+            cx,
+            cy + 60,
+            title_font,
+            (80, 80, 80),
+            (100, 100, 100),
+            (255, 255, 255),
+            padding=(50, 15),
+            radius=15,
+        )
+
+    def run(self):
+        """运行设置页面"""
+        while self.running:
+            dt = self.clock.tick(60) / 1000.0
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    self.result = "quit"
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.running = False
+                        self.result = "back"
+                else:
+                    if self.bci_btn.handle_event(event):
+                        bci_settings = BCISettingsScreen(
+                            self.screen, self.font, self.title_font
+                        )
+                        bci_settings.run()
+                    if self.back_btn.handle_event(event):
+                        self.running = False
+                        self.result = "back"
+
+            self._update(dt)
+            self._draw()
+            pygame.display.flip()
+
+        return self.result
+
+    def _update(self, dt):
+        self.bci_btn.update(dt)
+        self.back_btn.update(dt)
+
+    def _draw(self):
+        self.screen.fill((30, 30, 40))
+
+        title = self.title_font.render("游戏设置", True, (255, 255, 255))
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 100))
+
+        desc = self.font.render("请选择需要配置的项目", True, (180, 180, 180))
+        self.screen.blit(desc, (SCREEN_WIDTH // 2 - desc.get_width() // 2, 160))
+
+        self.bci_btn.draw(self.screen)
+        self.back_btn.draw(self.screen)
+
+        hint = self.font.render("ESC 返回主菜单", True, (100, 100, 100))
+        self.screen.blit(
+            hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2, SCREEN_HEIGHT - 50)
+        )
+
+
 class FloatingItem:
     def __init__(self, screen_w, screen_h, color=None):
         self.x = random.uniform(0, screen_w)
@@ -487,8 +904,8 @@ class MainMenu:
         ]
 
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
-        btn_spacing = 110
-        start_y = cy + 40
+        btn_spacing = 90
+        start_y = cy + 20
 
         self.start_btn = MenuItem(
             "开始游戏",
@@ -500,12 +917,26 @@ class MainMenu:
             (255, 255, 255),
         )
 
-        self.mode_selector = ModeSelector(cx, start_y + btn_spacing, font, title_font)
+        self.mode_selector = ModeSelector(
+            cx,
+            start_y + btn_spacing,
+            font,
+            title_font,
+            mode_keys=["regular", "challenge", "creative"],
+        )
+
+        self.bci_btn = BCIModeButton(
+            "脑机接口",
+            cx,
+            start_y + btn_spacing * 2,
+            font,
+            title_font,
+        )
 
         self.settings_btn = MenuItem(
             "游戏设置",
             cx,
-            start_y + btn_spacing * 2,
+            start_y + btn_spacing * 3,
             title_font,
             (60, 140, 80),
             (90, 170, 110),
@@ -552,9 +983,15 @@ class MainMenu:
                     mode = self.mode_selector.handle_event(event)
                     if mode:
                         self.current_mode = mode
-                    if self.settings_btn.handle_event(event):
+                    if self.bci_btn.handle_event(event):
                         self.running = False
-                        self.result = "settings"
+                        self.result = "start"
+                        self.current_mode = "bci"
+                    if self.settings_btn.handle_event(event):
+                        settings_screen = GameSettingsScreen(
+                            self.screen, self.font, self.title_font
+                        )
+                        settings_screen.run()
 
             self._update(dt)
             self._draw(dt)
@@ -565,6 +1002,7 @@ class MainMenu:
     def _update(self, dt):
         self.start_btn.update(dt)
         self.mode_selector.update(dt)
+        self.bci_btn.update(dt)
         self.settings_btn.update(dt)
 
         for item in self.floating_items:
@@ -603,6 +1041,7 @@ class MainMenu:
 
         self.start_btn.draw(self.screen)
         self.mode_selector.draw(self.screen)
+        self.bci_btn.draw(self.screen)
         self.settings_btn.draw(self.screen)
 
         hint = self.font.render("ESC 退出", True, (180, 180, 180))

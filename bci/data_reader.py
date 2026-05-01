@@ -1,54 +1,196 @@
 """
 BCI 脑电数据读取模块
-当前为 Demo 模拟版本，后续接入 HybridBCI SDK 时只需替换 read_data 方法
+通过 TCP Socket 连接到科创平台，获取专注力和头动数据
 """
 
-import random
+import json
+import socket
+import struct
 import time
+from config import BCI_CONNECTION_TIMEOUT
+from bci.config import load_bci_config
 
 
 class BCIDataReader:
     """
-    脑电数据读取器 - 第1周 Demo 版
+    脑电数据读取器
 
     功能:
-        - 模拟读取专注力（attention）和头动偏航角（yaw）数据
-        - 支持超时检测，模拟设备丢包情况
-
-    接入真实设备时:
-        替换 read_data() 方法中的模拟代码为真实 SDK 调用
+        - 通过 TCP 连接到科创平台获取专注力和头动数据
+        - 支持超时检测和数据滤波
+        - 支持自定义服务器IP和端口
     """
 
-    def __init__(self):
+    def __init__(self, ip=None, port=None):
+        bci_config = load_bci_config()
+        self.server_ip = ip or bci_config["server_ip"]
+        self.server_port = port or bci_config["server_port"]
+
         self.attention = 50  # 专注力值（0-100），初始值 50
         self.yaw = 0  # 头动偏航角（度），正负表示左右
         self.last_update_time = time.time()  # 上一次成功读取的时间戳
-        self.timeout = 0.1  # 超时阈值（秒），100ms 内无新数据视为丢包
-        self.last_print_time = 0  # 上一次打印日志的时间戳
-        self.print_interval = 1.0  # 日志打印间隔（秒），防止终端刷屏
+        self.timeout = 0.5  # 超时阈值（秒），500ms 内无新数据视为连接断开
+
+        self.socket = None
+        self.connected = False
+        self.recv_buffer = b""
+        self.last_print_time = 0
+        self.print_interval = 2.0
+
+    def connect(self, ip=None, port=None):
+        """
+        连接BCI设备（科创平台TCP服务器）
+
+        参数:
+            ip: 服务器IP地址，默认使用 config.py 中的配置
+            port: 服务器端口号，默认使用 config.py 中的配置
+
+        返回:
+            bool: 连接是否成功
+        """
+        if ip:
+            self.server_ip = ip
+        if port:
+            self.server_port = port
+
+        print(f"[BCI] 尝试连接到 {self.server_ip}:{self.server_port}...")
+
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.settimeout(BCI_CONNECTION_TIMEOUT)
+            self.socket.connect((self.server_ip, self.server_port))
+            self.socket.settimeout(0)  # 连接成功后设为非阻塞模式
+            self.connected = True
+            self.recv_buffer = b""
+            self.last_update_time = time.time()
+            print("[BCI] 已连接到科创平台")
+            return True
+        except socket.timeout:
+            print(f"[BCI] 连接超时（{BCI_CONNECTION_TIMEOUT}秒）")
+            self.connected = False
+        except ConnectionRefusedError:
+            print(
+                f"[BCI] 连接被拒绝，请检查科创平台是否已启动（{self.server_ip}:{self.server_port}）"
+            )
+            self.connected = False
+        except Exception as e:
+            print(f"[BCI] 连接失败: {e}")
+            self.connected = False
+
+        return False
+
+    def disconnect(self):
+        """断开BCI连接"""
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+            self.socket = None
+        self.connected = False
+        print("[BCI] 已断开连接")
+
+    def _recv_data(self):
+        """
+        接收TCP数据并解析JSON
+
+        返回:
+            dict: 解析后的JSON数据，如果无数据或解析失败返回 None
+        """
+        if not self.socket or not self.connected:
+            return None
+
+        try:
+            data = self.socket.recv(4096)
+            if not data:
+                return None
+            self.recv_buffer += data
+        except BlockingIOError:
+            return None
+        except Exception as e:
+            print(f"[BCI] 接收数据失败: {e}")
+            self.connected = False
+            return None
+
+        while len(self.recv_buffer) >= 4:
+            payload_len = struct.unpack(">I", self.recv_buffer[:4])[0]
+            total_len = 4 + payload_len
+
+            if len(self.recv_buffer) < total_len:
+                break
+
+            payload = self.recv_buffer[4:total_len]
+            self.recv_buffer = self.recv_buffer[total_len:]
+
+            try:
+                msg = json.loads(payload.decode("utf-8"))
+                return msg
+            except json.JSONDecodeError:
+                print(f"[BCI] JSON解析失败")
+                continue
+
+        return None
 
     def read_data(self, verbose=False):
         """
-        读取脑电数据（当前为模拟数据）
+        读取脑电数据
 
         参数:
             verbose: 是否打印数据到终端，默认 False
 
         返回:
-            (attention, yaw) 元组
+            (attention, yaw) 元组，如果设备未连接则返回 (None, None)
                 attention: 专注力值（0-100）
                 yaw: 头动偏航角（-30 ~ 30）
         """
-        # TODO: 替换为 HybridBCI SDK 的真实读取代码
-        # 示例：self.attention, self.yaw = bci_sdk.get_attention(), bci_sdk.get_yaw()
-        self.attention = random.randint(30, 90)  # 模拟专注力 30~90 波动
-        self.yaw = random.uniform(-30, 30)  # 模拟偏航角 -30~30 波动
+        if not self.connected:
+            return None, None
 
-        if verbose:
+        msg = self._recv_data()
+        if msg is None:
             current_time = time.time()
-            if current_time - self.last_print_time >= self.print_interval:
-                print(f"[BCI Demo] 专注力: {self.attention}, Yaw: {self.yaw:.1f}")
-                self.last_print_time = current_time
+            if current_time - self.last_update_time > self.timeout:
+                self.connected = False
+                print("[BCI] 数据超时，连接可能已断开")
+            return self.attention, self.yaw
+
+        try:
+            msg_type = msg.get("msg", "")
+
+            if msg_type == "ipc_algorithm_test":
+                algorithm_name = msg.get("algorithm_name", "")
+                result_args = msg.get("result_args", {})
+                data_content = result_args.get("data", None)
+
+                if algorithm_name == "attention" and data_content is not None:
+                    self.attention = int(data_content)
+                    self.last_update_time = time.time()
+                    if (
+                        verbose
+                        and time.time() - self.last_print_time >= self.print_interval
+                    ):
+                        print(f"[BCI] 专注力: {self.attention}")
+                        self.last_print_time = time.time()
+
+                elif algorithm_name == "gyroscope" and data_content is not None:
+                    if isinstance(data_content, dict):
+                        self.yaw = float(data_content.get("gyroscope_x", 0.0))
+                        self.last_update_time = time.time()
+                        if (
+                            verbose
+                            and time.time() - self.last_print_time
+                            >= self.print_interval
+                        ):
+                            print(f"[BCI] Yaw: {self.yaw:.2f}")
+                            self.last_print_time = time.time()
+
+                elif algorithm_name == "blink":
+                    if verbose:
+                        print(f"[BCI] 眨眼: {data_content}")
+
+        except Exception as e:
+            print(f"[BCI] 解析数据失败: {e}")
+            return None, None
 
         return self.attention, self.yaw
 
@@ -56,16 +198,7 @@ class BCIDataReader:
         """
         带超时的数据读取
 
-        如果距离上次更新超过 timeout（0.1 秒），则认为数据丢失，返回上一次有效数据
-
         返回:
-            (attention, yaw) 元组
+            (attention, yaw) 元组，如果设备未连接或超时则返回 (None, None)
         """
-        current_time = time.time()
-        if current_time - self.last_update_time > self.timeout:
-            # 模拟丢包：保持上一次数据不变
-            print("[BCI] 数据丢包，保持上一次位置")
-            return self.attention, self.yaw
-
-        self.last_update_time = current_time
-        return self.read_data()
+        return self.read_data(verbose=True)

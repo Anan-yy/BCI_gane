@@ -93,6 +93,8 @@ INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的
 
 # ============================================================
 # 脑电（BCI）数据配置
+# 注意：BCI服务器IP和端口请在游戏中点击"BCI设置"按钮进行配置
+# 配置文件保存在 bci_config.json
 # ============================================================
 DEFAULT_ATTENTION = 50  # 默认专注力值（0-100），模拟数据基准值
 DEAD_ZONE = 5  # 死区阈值，头动信号绝对值小于此值时视为静止（防抖动）
@@ -100,6 +102,7 @@ SMOOTHING_FACTOR = (
     0.3  # 指数平滑因子（0-1），值越大响应越快但越抖动，值越小越平滑但延迟越大
 )
 YAW_SCALE = 0.5  # 头动偏航角缩放系数，控制头部转动映射到杯子移动的距离
+BCI_CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
 
 # ============================================================
 # 游戏模式配置
@@ -110,6 +113,7 @@ GAME_MODES = {
         "description": "接住必接食材，完成标准配方",
         "has_required": True,
         "free_combine": False,
+        "bci_mode": False,
         "ingredient_speed": 3,
         "spawn_interval": 1000,
         "ui_color": (60, 160, 100),
@@ -119,6 +123,7 @@ GAME_MODES = {
         "description": "更快更密集，考验你的手速",
         "has_required": True,
         "free_combine": False,
+        "bci_mode": False,
         "ingredient_speed": 5,
         "spawn_interval": 600,
         "ui_color": (200, 80, 60),
@@ -128,9 +133,20 @@ GAME_MODES = {
         "description": "自由搭配，创造你的专属奶茶",
         "has_required": False,
         "free_combine": True,
+        "bci_mode": False,
         "ingredient_speed": 3,
         "spawn_interval": 1200,
         "ui_color": (120, 80, 200),
+    },
+    "bci": {
+        "name": "脑机接口模式",
+        "description": "使用BCI设备读取专注力和头动数据",
+        "has_required": False,
+        "free_combine": True,
+        "bci_mode": True,
+        "ingredient_speed": 3,
+        "spawn_interval": 1200,
+        "ui_color": (0, 150, 200),
     },
 }
 

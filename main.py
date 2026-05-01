@@ -19,7 +19,7 @@ from data.score_manager import ScoreManager
 from data.recipes import evaluate_recipe
 from bci.data_reader import BCIDataReader
 from bci.filter import DeadZoneFilter, ExponentialSmoothing, AttentionMappingCurve
-from menu import MainMenu
+from menu import MainMenu, GameSettingsScreen
 import sys
 import time
 import os
@@ -74,6 +74,7 @@ def run_game(screen, clock, game_mode="regular"):
     mode_name = mode_config["name"]
     has_required = mode_config["has_required"]
     free_combine = mode_config["free_combine"]
+    bci_mode = mode_config["bci_mode"]
 
     font = load_chinese_font(36)
     hint_font = load_chinese_font(20)
@@ -95,6 +96,8 @@ def run_game(screen, clock, game_mode="regular"):
     # === BCI 脑电设备初始化 ===
     bci_reader = BCIDataReader()
     bci_available = False
+    if bci_mode:
+        bci_available = bci_reader.connect()
 
     # === 信号滤波器 ===
     dead_zone = DeadZoneFilter(threshold=5)
@@ -140,7 +143,14 @@ def run_game(screen, clock, game_mode="regular"):
     print("=" * 50)
     print(f"疯狂奶茶杯 - {mode_name}")
     print("=" * 50)
-    if free_combine:
+    if bci_mode:
+        print("脑机接口模式规则：")
+        print("  使用BCI设备读取专注力和头动数据")
+        print("  自由搭配食材，不同组合产生不同评分")
+        print("  专注力越高，评分加成越大")
+        if not bci_available:
+            print("  [警告] BCI设备未连接，无法读取数据")
+    elif free_combine:
         print("创意模式规则：")
         print("  没有必接食材，自由搭配")
         print("  不同组合产生不同评分（黑暗→米其林）")
@@ -172,15 +182,17 @@ def run_game(screen, clock, game_mode="regular"):
 
         # === 获取控制信号 ===
         if bci_available:
-            attention, raw_yaw = bci_reader.read_with_timeout()
+            result = bci_reader.read_with_timeout()
+            if result != (None, None):
+                attention, raw_yaw = result
+            else:
+                # BCI设备连接但无数据时，使用默认值
+                attention = 50
+                raw_yaw = 0
         else:
-            t = time.time()
-            attention = 50 + int(30 * ((t % 10) / 10))
-            raw_yaw = 20 * ((t % 8) / 4 - 1)
-
-            if int(t) % 5 == 0 and time.time() - last_print_time >= 4.9:
-                print(f"[模拟] 专注力: {attention}, Yaw: {raw_yaw:.1f}")
-                last_print_time = time.time()
+            # 非BCI模式或不使用BCI时，使用键盘控制，不显示专注力/头动
+            attention = None
+            raw_yaw = 0
 
         # === 信号处理 ===
         filtered_yaw = dead_zone.filter(raw_yaw)
@@ -243,17 +255,25 @@ def run_game(screen, clock, game_mode="regular"):
         screen.blit(mode_text, (10, 50))
 
         # BCI/专注力信息
-        if free_combine and attention_curve:
-            multiplier = attention_curve.map_attention(attention)
-            tier = attention_curve.get_rating_tier(attention)
-            bci_text = font.render(
-                f"专注力: {attention} ({tier} x{multiplier:.2f})", True, (100, 0, 0)
-            )
-        else:
-            bci_text = font.render(
-                f"专注力: {attention}  头动: {smoothed_yaw:.1f}", True, (100, 0, 0)
-            )
-        screen.blit(bci_text, (10, 90))
+        if bci_mode and attention is not None:
+            if free_combine and attention_curve:
+                multiplier = attention_curve.map_attention(attention)
+                tier = attention_curve.get_rating_tier(attention)
+                bci_text = font.render(
+                    f"专注力: {attention} ({tier} x{multiplier:.2f})",
+                    True,
+                    (0, 150, 200),
+                )
+            else:
+                bci_text = font.render(
+                    f"专注力: {attention}  头动: {smoothed_yaw:.1f}",
+                    True,
+                    (0, 150, 200),
+                )
+            screen.blit(bci_text, (10, 90))
+        elif bci_mode and attention is None:
+            bci_text = font.render("BCI设备未连接", True, (200, 0, 0))
+            screen.blit(bci_text, (10, 90))
 
         # 创意模式配方显示
         if free_combine and recipe_result:
@@ -285,7 +305,9 @@ def run_game(screen, clock, game_mode="regular"):
                 )
 
         # 底部提示
-        if free_combine:
+        if bci_mode:
+            hint_text = "脑机接口模式 | ESC 返回"
+        elif free_combine:
             hint_text = "自由搭配，创造你的专属奶茶 | ESC 返回"
         else:
             hint_text = "方向键: 移动 | Y: 头动 | K: 键盘 | ESC: 返回"
@@ -312,7 +334,11 @@ def main():
         if result == "quit":
             break
         elif result == "settings":
-            print("游戏设置 - 待实现")
+            settings_screen = GameSettingsScreen(
+                screen, load_chinese_font(24), load_chinese_font(40)
+            )
+            settings_screen.run()
+            continue
         elif result == "start":
             # 2. 进入主游戏
             game_result = run_game(screen, clock, game_mode=mode)
