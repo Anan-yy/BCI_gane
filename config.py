@@ -26,21 +26,23 @@ SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")  # 音效资源目录
 # 图片资源路径
 # 新增图片时只需将文件放入 images 目录，然后在此处添加路径即可
 # ============================================================
-BACKGROUND_IMG = os.path.join(IMAGES_DIR, "background.png")  # 背景图
+BACKGROUND_IMG = os.path.join(IMAGES_DIR, "backgrounds", "奶茶店2.png")  # 背景图
 CUP_LEVEL_IMGS = [  # 不同等级的杯子图片列表
-    os.path.join(IMAGES_DIR, "cup1.png"),
-    os.path.join(IMAGES_DIR, "cup2.png"),
-    os.path.join(IMAGES_DIR, "cup3.png"),
+    os.path.join(IMAGES_DIR, "cups", "cup1.png"),
+    os.path.join(IMAGES_DIR, "cups", "cup2.png"),
+    os.path.join(IMAGES_DIR, "cups", "cup3.png"),
 ]
-FOCUS_TEAPOT_IMG = os.path.join(IMAGES_DIR, "focus_teapot.png")  # 专注力茶壶 UI 图片
+FOCUS_TEAPOT_IMG = os.path.join(
+    IMAGES_DIR, "other", "focus_teapot.png"
+)  # 专注力茶壶 UI 图片
 INGREDIENT_IMGS = {  # 食材图片字典
-    "红茶": os.path.join(IMAGES_DIR, "tea.png"),
-    "牛奶": os.path.join(IMAGES_DIR, "milk.png"),
-    "珍珠": os.path.join(IMAGES_DIR, "pearl.png"),
-    "椰果": os.path.join(IMAGES_DIR, "coconut.png"),
-    "布丁": os.path.join(IMAGES_DIR, "pudding.png"),
-    "仙草": os.path.join(IMAGES_DIR, "grass_jelly.png"),
-    "秘方": os.path.join(IMAGES_DIR, "secret_recipe.png"),
+    "红茶": os.path.join(IMAGES_DIR, "ingredients", "tea.png"),
+    "牛奶": os.path.join(IMAGES_DIR, "ingredients", "milk.png"),
+    "珍珠": os.path.join(IMAGES_DIR, "ingredients", "pearl.png"),
+    "椰果": os.path.join(IMAGES_DIR, "ingredients", "coconut.png"),
+    "布丁": os.path.join(IMAGES_DIR, "ingredients", "pudding.png"),
+    "仙草": os.path.join(IMAGES_DIR, "ingredients", "grass_jelly.png"),
+    "秘方": os.path.join(IMAGES_DIR, "ingredients", "secret_recipe.png"),
 }
 
 # ============================================================

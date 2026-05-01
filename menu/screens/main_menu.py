@@ -74,7 +74,7 @@ class MainMenu:
         self.title_phase = 0.0
 
     def _load_bg(self):
-        path = os.path.join(IMAGES_DIR, "奶茶店1.png")
+        path = os.path.join(IMAGES_DIR, "backgrounds", "奶茶店1.png")
         if os.path.exists(path):
             img = pygame.image.load(path).convert()
             return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))

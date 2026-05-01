@@ -14,6 +14,7 @@ from config import (
     GAME_MODES,
     DEFAULT_GAME_MODE,
     FOCUS_TEAPOT_IMG,
+    BACKGROUND_IMG,
 )
 from game.sprites import Cup, Ingredient, CatchEffect, Particle
 from game.ingredient_manager import IngredientManager
@@ -238,9 +239,8 @@ def run_game(screen, clock, game_mode="regular"):
     background = None
     has_background = False
     try:
-        bg_path = os.path.join(IMAGES_DIR, "奶茶店2.png")
-        if os.path.exists(bg_path):
-            background = pygame.image.load(bg_path).convert()
+        if os.path.exists(BACKGROUND_IMG):
+            background = pygame.image.load(BACKGROUND_IMG).convert()
             background = pygame.transform.scale(
                 background, (SCREEN_WIDTH, SCREEN_HEIGHT)
             )
@@ -469,7 +469,7 @@ def main():
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("疯狂奶茶杯 - 第1周")
-    icon_path = os.path.join(IMAGES_DIR, "游戏图标.png")
+    icon_path = os.path.join(IMAGES_DIR, "other", "游戏图标.png")
     if os.path.exists(icon_path):
         pygame.display.set_icon(pygame.image.load(icon_path))
     clock = pygame.time.Clock()
