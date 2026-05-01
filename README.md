@@ -25,8 +25,7 @@ BCI_gane/
 ├── game/                    # 游戏核心模块
 │   ├── sprites.py           # 精灵定义（杯子、食材、粒子、接住特效）
 │   ├── ingredient_manager.py# 食材生成管理器
-│   ├── game_manager.py      # 游戏管理器（旧版，已被 main.py 取代）
-│   └── collision.py         # 碰撞检测工具函数
+│   └── game_manager.py      # 游戏管理器（旧版，已被 main.py 取代）
 │
 ├── bci/                     # 脑机接口模块
 │   ├── data_reader.py       # BCI 数据读取器（当前为模拟数据）
@@ -36,13 +35,10 @@ BCI_gane/
 │   ├── score_manager.py     # 分数/金钱管理系统
 │   └── ingredient_config.py # 食材属性配置表
 │
-├── assets/                  # 资源文件夹
-│   ├── images/              # 图片资源（背景、杯子、食材）
-│   ├── fonts/               # 字体文件（站酷快乐体等）
-│   └── sounds/              # 音效文件
-│
-├── colors.py                # 颜色工具
-└── utils/                   # 工具函数
+└── assets/                  # 资源文件夹
+    ├── images/              # 图片资源（背景、杯子、食材）
+    ├── fonts/               # 字体文件（站酷快乐体等）
+    └── sounds/              # 音效文件（预留）
 ```
 
 ## 快速开始
