@@ -1,4 +1,5 @@
 import pygame
+import math
 import random
 from config import *
 
@@ -6,17 +7,19 @@ from config import *
 class Cup(pygame.sprite.Sprite):
     def __init__(self, *groups):
         super().__init__(*groups)
-        # 尝试加载杯子图片，失败则用默认图形
+        self._moving = False
         try:
-            self.image = pygame.image.load(CUP_IMG).convert_alpha()
-            self.image = pygame.transform.scale(self.image, (CUP_WIDTH, CUP_HEIGHT))
-        except:
-            # 使用默认图形
-            self.image = pygame.Surface((CUP_WIDTH, CUP_HEIGHT), pygame.SRCALPHA)
-            pygame.draw.rect(self.image, CUP_COLOR, (0, 0, CUP_WIDTH, CUP_HEIGHT))
-            pygame.draw.rect(
-                self.image, WHITE, (5, 5, CUP_WIDTH - 10, CUP_HEIGHT - 10), 2
+            self._orig_image = pygame.image.load(CUP_IMG).convert_alpha()
+            self._orig_image = pygame.transform.scale(
+                self._orig_image, (CUP_WIDTH, CUP_HEIGHT)
             )
+        except:
+            self._orig_image = pygame.Surface((CUP_WIDTH, CUP_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.rect(self._orig_image, CUP_COLOR, (0, 0, CUP_WIDTH, CUP_HEIGHT))
+            pygame.draw.rect(
+                self._orig_image, WHITE, (5, 5, CUP_WIDTH - 10, CUP_HEIGHT - 10), 2
+            )
+        self.image = self._orig_image
         self.rect = self.image.get_rect()
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.bottom = SCREEN_HEIGHT - 10
@@ -24,18 +27,55 @@ class Cup(pygame.sprite.Sprite):
         self.yaw_control = False
         self.last_yaw = 0
 
-    def update(self, keys=None, yaw=None):
+        # 动画状态
+        self._tilt = 0.0  # 当前倾斜角度
+        self._bounce_t = -1.0  # 弹跳进度 (0~1)，-1 表示无弹跳
+        self._bounce_dur = 0.2  # 弹跳持续时间（秒）
+
+    def trigger_bounce(self):
+        """触发接住食材时的弹跳动画"""
+        self._bounce_t = 0.0
+
+    def update(self, keys=None, yaw=None, dt=1.0):
+        move_dir = 0  # -1 左, 0 停, 1 右
+
         if self.yaw_control and yaw is not None:
             if abs(yaw) > DEAD_ZONE:
                 self.rect.x += yaw * YAW_SCALE
+                move_dir = -1 if yaw < 0 else 1
         elif keys:
             if keys[pygame.K_LEFT]:
                 self.rect.x -= self.speed
+                move_dir = -1
             if keys[pygame.K_RIGHT]:
                 self.rect.x += self.speed
+                move_dir = 1
 
         self.rect.left = max(0, self.rect.left)
         self.rect.right = min(SCREEN_WIDTH, self.rect.right)
+
+        # 更新倾斜：目标角度 ±5°，平滑过渡
+        target_tilt = move_dir * 5.0
+        self._tilt += (target_tilt - self._tilt) * 0.2
+
+        # 更新弹跳
+        if self._bounce_t >= 0:
+            self._bounce_t += dt / self._bounce_dur
+            if self._bounce_t >= 1.0:
+                self._bounce_t = -1.0
+
+        # 应用变换
+        scale = 1.0
+        if self._bounce_t >= 0:
+            bounce_phase = math.sin(self._bounce_t * math.pi)
+            scale = 1.0 + 0.1 * bounce_phase
+
+        rotated = pygame.transform.rotozoom(self._orig_image, -self._tilt, scale)
+        new_rect = rotated.get_rect(center=(self.rect.centerx, self.rect.centery))
+        new_rect.bottom = self.rect.bottom
+
+        self.image = rotated
+        self.rect = new_rect
 
 
 class Ingredient(pygame.sprite.Sprite):

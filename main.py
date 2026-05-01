@@ -139,9 +139,9 @@ def main():
 
         # 更新杯子位置
         if use_yaw_control:
-            cup.update(yaw=smoothed_yaw)
+            cup.update(yaw=smoothed_yaw, dt=dt / 1000.0)
         else:
-            cup.update(keys=keys)
+            cup.update(keys=keys, dt=dt / 1000.0)
 
         # 生成食材
         ingredient = ingredient_manager.update(required_types=["红茶"])
@@ -155,7 +155,7 @@ def main():
         hits = pygame.sprite.spritecollide(cup, ingredients, False)
         for hit in hits:
             hit.kill()
-            # 第一周：接住任意食材+10分
+            cup.trigger_bounce()
             score_manager.score += 10
             print(f"接住 {hit.type}！分数: {score_manager.score}")
 
