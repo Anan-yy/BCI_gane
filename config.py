@@ -27,6 +27,9 @@ INGREDIENT_IMGS = {
 
 # 支持中文的字体列表（按优先级）
 CHINESE_FONTS = [
+    os.path.join(
+        ASSETS_DIR, "fonts", "ZCOOLKuaiLe-Regular.ttf"
+    ),  # 站酷快乐体（卡通体）
     "simhei.ttf",  # 黑体
     "simkai.ttf",  # 楷体
     "msyh.ttf",  # 微软雅黑

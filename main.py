@@ -21,21 +21,18 @@ import os
 
 def load_chinese_font(size=36):
     """加载支持中文的字体"""
-    # 先尝试项目内的字体
-    project_font = os.path.join(ASSETS_DIR, "fonts", "simhei.ttf")
+    project_font = os.path.join(ASSETS_DIR, "fonts", "ZCOOLKuaiLe-Regular.ttf")
     if os.path.exists(project_font):
         try:
             return pygame.font.Font(project_font, size)
         except:
             pass
 
-    # 尝试系统字体
     try:
         return pygame.font.SysFont("simhei", size)
     except:
         pass
 
-    # 最后使用pygame默认字体
     return pygame.font.Font(pygame.font.get_default_font(), size)
 
 
