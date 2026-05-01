@@ -223,6 +223,32 @@ class CatchEffect(pygame.sprite.Sprite):
             self.rect.size = (w, h)
 
 
+class MissEffect(pygame.sprite.Sprite):
+    """接住失败特效 - 原地缩小并淡出"""
+
+    def __init__(self, ingredient, *groups):
+        super().__init__(*groups)
+        self.image = ingredient.image.copy()
+        self.rect = self.image.get_rect(center=ingredient.rect.center)
+        self._start_image = self.image.copy()
+        self._t = 0.0
+        self._duration = 0.25
+
+    def update(self, dt=0.016):
+        self._t += dt / self._duration
+        if self._t >= 1.0:
+            self.kill()
+            return
+
+        shrink = 1.0 - self._t
+        w = int(self._start_image.get_width() * shrink)
+        h = int(self._start_image.get_height() * shrink)
+        if w > 0 and h > 0:
+            self.image = pygame.transform.scale(self._start_image, (w, h))
+            self.rect = self.image.get_rect(center=self.rect.center)
+        self.image.set_alpha(int(255 * shrink))
+
+
 class Ingredient(pygame.sprite.Sprite):
     """
     食材精灵（从天而降的奶茶配料）

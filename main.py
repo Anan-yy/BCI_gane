@@ -16,7 +16,7 @@ from config import (
     FOCUS_TEAPOT_IMG,
     BACKGROUND_IMG,
 )
-from game.sprites import Cup, Ingredient, CatchEffect, Particle
+from game.sprites import Cup, Ingredient, CatchEffect, Particle, MissEffect
 from game.ingredient_manager import IngredientManager
 from data.score_manager import ScoreManager
 from data.recipes import evaluate_recipe
@@ -214,6 +214,7 @@ def run_game(screen, clock, game_mode="regular"):
 
     ingredients = pygame.sprite.Group()
     catch_effects = pygame.sprite.Group()
+    miss_effects = pygame.sprite.Group()
     particles = pygame.sprite.Group()
 
     score_manager = ScoreManager()
@@ -346,30 +347,67 @@ def run_game(screen, clock, game_mode="regular"):
 
         ingredients.update()
         catch_effects.update(dt=dt_sec)
+        miss_effects.update(dt=dt_sec)
         particles.update(dt=dt_sec)
 
         # === 碰撞检测 ===
-        hits = pygame.sprite.spritecollide(cup, ingredients, True)
+        hits = pygame.sprite.spritecollide(cup, ingredients, False)
+        # 判定线：杯子高度的 4/5 处（不可见）
+        threshold_y = cup.rect.top + cup.rect.height * 0.8
+
+        # 1. 处理与杯子发生碰撞的小料
         for hit in hits:
-            effect = CatchEffect(hit, cup.rect)
-            catch_effects.add(effect)
-            for _ in range(8):
-                color = INGREDIENT_COLORS.get(hit.type, (255, 200, 0))
-                particles.add(Particle(hit.rect.centerx, hit.rect.centery, color))
-            cup.trigger_bounce()
+            if hit.rect.bottom > threshold_y:
+                # 碰到杯子但位置太低 -> 视为没接住，触发失败动画
+                hit.rect.bottom = int(threshold_y)  # 修正位置到判定线
+                miss_effects.add(MissEffect(hit))
 
-            if free_combine:
-                # 创意模式：记录食材，不检查必接
-                creative_ingredients.append(hit.type)
-                score_manager.score += 10
-                # 评估当前配方
-                recipe_result = evaluate_recipe(creative_ingredients)
+                # 添加少量收敛粒子
+                color = INGREDIENT_COLORS.get(hit.type, (200, 200, 200))
+                for _ in range(4):
+                    p = Particle(hit.rect.centerx, int(threshold_y), color)
+                    p.vx *= 0.4
+                    p.vy *= 0.4
+                    p.decay *= 1.5
+                    particles.add(p)
+
+                ingredients.remove(hit)
             else:
-                score_manager.score += 10
+                # 正常接住
+                ingredients.remove(hit)
+                effect = CatchEffect(hit, cup.rect)
+                catch_effects.add(effect)
+                for _ in range(8):
+                    color = INGREDIENT_COLORS.get(hit.type, (255, 200, 0))
+                    particles.add(Particle(hit.rect.centerx, hit.rect.centery, color))
+                cup.trigger_bounce()
 
-            cup.update_level(score_manager.score)
+                if free_combine:
+                    creative_ingredients.append(hit.type)
+                    score_manager.score += 10
+                    recipe_result = evaluate_recipe(creative_ingredients)
+                else:
+                    score_manager.score += 10
 
-            print(f"接住 {hit.type}！分数: {score_manager.score}")
+                cup.update_level(score_manager.score)
+                print(f"接住 {hit.type}！分数: {score_manager.score}")
+
+        # 2. 处理未碰撞但掉落过深的小料（漏接）
+        for ing in ingredients.sprites():
+            if ing.rect.bottom > threshold_y:
+                ing.rect.bottom = int(threshold_y)  # 修正位置到判定线
+                miss_effects.add(MissEffect(ing))
+
+                # 粒子效果
+                color = INGREDIENT_COLORS.get(ing.type, (200, 200, 200))
+                for _ in range(4):
+                    p = Particle(ing.rect.centerx, int(threshold_y), color)
+                    p.vx *= 0.4
+                    p.vy *= 0.4
+                    p.decay *= 1.5
+                    particles.add(p)
+
+                ingredients.remove(ing)
 
         # === 渲染画面 ===
         if has_background and background:
@@ -380,6 +418,7 @@ def run_game(screen, clock, game_mode="regular"):
         all_sprites.draw(screen)
         ingredients.draw(screen)
         catch_effects.draw(screen)
+        miss_effects.draw(screen)
         particles.draw(screen)
 
         # === 绘制 HUD ===
