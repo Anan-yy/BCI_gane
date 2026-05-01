@@ -25,6 +25,7 @@ from bci.filter import DeadZoneFilter, ExponentialSmoothing, AttentionMappingCur
 from menu import MainMenu, GameSettingsScreen
 from menu.screens.bci_settings import BCISettingsScreen
 from menu.splash import SplashScreen
+from menu.transition import StartTransition
 import sys
 import time
 import os
@@ -297,6 +298,19 @@ def run_game(screen, clock, game_mode="regular"):
         print("  Y: 头动模式 | K: 键盘模式 | ESC: 返回菜单")
     print("=" * 50)
 
+    # === 立即绘制第一帧，确保过场动画结束后屏幕不闪烁 ===
+    if has_background and background:
+        screen.blit(background, (0, 0))
+    else:
+        screen.fill((255, 255, 255))
+
+    all_sprites.draw(screen)
+    score_text = font.render(f"分数: {score_manager.score}", True, (0, 0, 0))
+    screen.blit(score_text, (10, 10))
+    mode_text = font.render(f"{mode_name}", True, (100, 50, 150))
+    screen.blit(mode_text, (10, 50))
+    pygame.display.flip()
+
     # === 主游戏循环 ===
     while running:
         dt = clock.tick(60)
@@ -532,7 +546,9 @@ def main():
             settings_screen.run()
             continue
         elif result == "start":
-            # 2. 进入主游戏
+            # 2. 播放开始过场动画
+            StartTransition(screen).run()
+            # 3. 进入主游戏
             game_result = run_game(screen, clock, game_mode=mode)
             if game_result == "quit":
                 break

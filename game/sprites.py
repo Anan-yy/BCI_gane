@@ -162,8 +162,8 @@ class Particle(pygame.sprite.Sprite):
         if self.life <= 0:
             self.kill()
             return
-        self.rect.x += self.vx
-        self.rect.y += self.vy
+        self.rect.x = int(self.rect.x + self.vx)
+        self.rect.y = int(self.rect.y + self.vy)
         self.vy += 0.15  # 重力加速度（像素/帧²），让粒子呈抛物线下落
         self.image.set_alpha(int(self.life * 255))
 
