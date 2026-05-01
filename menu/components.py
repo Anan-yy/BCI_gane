@@ -1,0 +1,129 @@
+"""菜单基础组件 - MenuItem 按钮和 ClickParticle 点击粒子"""
+
+import pygame
+import math
+import random
+
+
+class ClickParticle:
+    """点击特效粒子 - 从点击位置向外扩散的彩色粒子"""
+
+    def __init__(self, x, y, color):
+        self.x = float(x)
+        self.y = float(y)
+        self.color = color
+        angle = random.uniform(0, 2 * math.pi)
+        speed = random.uniform(3, 10)
+        self.vx = math.cos(angle) * speed
+        self.vy = math.sin(angle) * speed
+        self.life = 1.0
+        self.decay = random.uniform(1.5, 3.0)
+        self.size = random.randint(3, 8)
+
+    def update(self, dt=0.016):
+        self.life -= self.decay * dt
+        if self.life <= 0:
+            return False
+        self.x += self.vx
+        self.y += self.vy
+        self.vx *= 0.96
+        self.vy *= 0.96
+        return True
+
+    def draw(self, screen):
+        alpha = int(self.life * 255)
+        surf = pygame.Surface((self.size * 2, self.size * 2), pygame.SRCALPHA)
+        pygame.draw.circle(
+            surf, (*self.color, alpha), (self.size, self.size), self.size
+        )
+        screen.blit(surf, (int(self.x) - self.size, int(self.y) - self.size))
+
+
+class MenuItem:
+    """菜单按钮组件，支持鼠标悬停动画和点击粒子效果"""
+
+    def __init__(
+        self,
+        text,
+        x,
+        y,
+        font,
+        bg_color,
+        hover_color,
+        text_color,
+        padding=(60, 18),
+        radius=20,
+    ):
+        self.text = text
+        self.font = font
+        self.bg_color = bg_color
+        self.hover_color = hover_color
+        self.text_color = text_color
+        self.padding = padding
+        self.radius = radius
+
+        self._text_surf = font.render(text, True, text_color)
+        w = self._text_surf.get_width() + padding[0] * 2
+        h = self._text_surf.get_height() + padding[1] * 2
+        self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
+
+        self.hovered = False
+        self.scale_t = 0.0
+        self.click_t = 0.0
+        self.click_particles = []
+
+    def update(self, dt=0.016):
+        target = 1.0 if self.hovered else 0.0
+        self.scale_t += (target - self.scale_t) * 0.15
+        if self.click_t > 0:
+            self.click_t -= dt * 3
+        self.click_particles = [p for p in self.click_particles if p.update(dt)]
+
+    def draw(self, screen):
+        s = 1.0 + 0.06 * self.scale_t
+        w = int(self.rect.width * s)
+        h = int(self.rect.height * s)
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+
+        color = self.hover_color if self.hovered else self.bg_color
+        self._draw_rounded_rect(surf, (0, 0, w, h), color, int(self.radius * s))
+
+        if self.click_t > 0:
+            click_color = (*color, int(self.click_t * 100))
+            self._draw_rounded_rect(
+                surf, (0, 0, w, h), click_color, int(self.radius * s)
+            )
+
+        tw = self._text_surf.get_width()
+        th = self._text_surf.get_height()
+        surf.blit(self._text_surf, ((w - tw) // 2, (h - th) // 2))
+
+        screen.blit(surf, (self.rect.centerx - w // 2, self.rect.centery - h // 2))
+
+        for p in self.click_particles:
+            p.draw(screen)
+
+    def trigger_click(self):
+        """触发点击粒子效果"""
+        self.click_t = 1.0
+        for _ in range(15):
+            self.click_particles.append(
+                ClickParticle(self.rect.centerx, self.rect.centery, self.bg_color)
+            )
+        for _ in range(8):
+            self.click_particles.append(
+                ClickParticle(self.rect.centerx, self.rect.centery, (255, 255, 255))
+            )
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            self.hovered = self.rect.collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                self.trigger_click()
+                return True
+        return False
+
+    @staticmethod
+    def _draw_rounded_rect(surface, rect, color, radius):
+        pygame.draw.rect(surface, color, rect, border_radius=radius)

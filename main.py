@@ -20,6 +20,7 @@ from data.recipes import evaluate_recipe
 from bci.data_reader import BCIDataReader
 from bci.filter import DeadZoneFilter, ExponentialSmoothing, AttentionMappingCurve
 from menu import MainMenu, GameSettingsScreen
+from menu.screens.bci_settings import BCISettingsScreen
 import sys
 import time
 import os
