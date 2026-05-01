@@ -98,3 +98,79 @@ class SensitivityCurve:
         sign = 1 if yaw_value >= 0 else -1
         magnitude = abs(yaw_value)
         return sign * self.base_sensitivity * (magnitude**self.exponent)
+
+
+class AttentionMappingCurve:
+    """
+    创意模式专注力映射曲线 - 将专注力转换为评分加成倍率
+
+    原理：
+        - 低专注力（0-30）：倍率低（0.5-0.8），配方评分打折扣
+        - 中专注力（30-70）：倍率线性增长（0.8-1.0）
+        - 高专注力（70-100）：倍率超线性增长（1.0-1.5），专注越高加成越大
+
+    公式：分段函数
+        - attention < 30:  multiplier = 0.5 + (attention / 30) * 0.3
+        - 30 <= attention < 70:  multiplier = 0.8 + ((attention - 30) / 40) * 0.2
+        - attention >= 70:  multiplier = 1.0 + ((attention - 70) / 30) * 0.5
+
+    参数:
+        low_threshold: 低专注力阈值，默认 30
+        high_threshold: 高专注力阈值，默认 70
+        max_multiplier: 最大倍率，默认 1.5
+    """
+
+    def __init__(self, low_threshold=30, high_threshold=70, max_multiplier=1.5):
+        self.low_threshold = low_threshold
+        self.high_threshold = high_threshold
+        self.max_multiplier = max_multiplier
+
+    def map_attention(self, attention):
+        """
+        将专注力值映射为评分倍率
+
+        参数:
+            attention: 专注力值（0-100）
+
+        返回:
+            倍率值（0.5-1.5），用于乘以配方基础评分
+        """
+        attention = max(0, min(100, attention))  # 限制在 0-100 范围
+
+        if attention < self.low_threshold:
+            # 低专注区：0.5 ~ 0.8
+            multiplier = 0.5 + (attention / self.low_threshold) * 0.3
+        elif attention < self.high_threshold:
+            # 中专注区：0.8 ~ 1.0
+            multiplier = (
+                0.8
+                + (
+                    (attention - self.low_threshold)
+                    / (self.high_threshold - self.low_threshold)
+                )
+                * 0.2
+            )
+        else:
+            # 高专注区：1.0 ~ max_multiplier
+            multiplier = 1.0 + (
+                (attention - self.high_threshold) / (100 - self.high_threshold)
+            ) * (self.max_multiplier - 1.0)
+
+        return multiplier
+
+    def get_rating_tier(self, attention):
+        """
+        根据专注力获取当前所处的倍率区间描述
+
+        参数:
+            attention: 专注力值（0-100）
+
+        返回:
+            区间描述字符串
+        """
+        if attention < self.low_threshold:
+            return "分心状态"
+        elif attention < self.high_threshold:
+            return "平稳专注"
+        else:
+            return "高度专注"

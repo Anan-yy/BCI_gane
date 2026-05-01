@@ -102,8 +102,42 @@ SMOOTHING_FACTOR = (
 YAW_SCALE = 0.5  # 头动偏航角缩放系数，控制头部转动映射到杯子移动的距离
 
 # ============================================================
-# 生成间隔（毫秒）
+# 游戏模式配置
 # ============================================================
-INGREDIENT_SPAWN_INTERVAL = (
-    1000  # 食材生成间隔（毫秒），1000 = 每 1 秒生成一个食材，值越小难度越高
-)
+GAME_MODES = {
+    "regular": {
+        "name": "常规模式",
+        "description": "接住必接食材，完成标准配方",
+        "has_required": True,
+        "free_combine": False,
+        "ingredient_speed": 3,
+        "spawn_interval": 1000,
+        "ui_color": (60, 160, 100),
+    },
+    "challenge": {
+        "name": "挑战模式",
+        "description": "更快更密集，考验你的手速",
+        "has_required": True,
+        "free_combine": False,
+        "ingredient_speed": 5,
+        "spawn_interval": 600,
+        "ui_color": (200, 80, 60),
+    },
+    "creative": {
+        "name": "创意模式",
+        "description": "自由搭配，创造你的专属奶茶",
+        "has_required": False,
+        "free_combine": True,
+        "ingredient_speed": 3,
+        "spawn_interval": 1200,
+        "ui_color": (120, 80, 200),
+    },
+}
+
+DEFAULT_GAME_MODE = "regular"  # 默认游戏模式
+
+# ============================================================
+# 生成间隔（毫秒）
+# 注：实际间隔由 GAME_MODES 中对应模式的 spawn_interval 决定
+# ============================================================
+INGREDIENT_SPAWN_INTERVAL = 1000  # 兼容旧代码的默认值

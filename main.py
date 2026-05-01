@@ -1,5 +1,5 @@
 """疯狂奶茶杯 - 第一周主程序
-游戏入口文件，负责初始化 pygame、管理界面跳转（主菜单 -> 开始界面 -> 游戏）
+游戏入口文件，负责初始化 pygame、管理界面跳转（主菜单 -> 模式选择 -> 游戏）
 """
 
 import pygame
@@ -10,14 +10,16 @@ from config import (
     IMAGES_DIR,
     ASSETS_DIR,
     INGREDIENT_COLORS,
+    GAME_MODES,
+    DEFAULT_GAME_MODE,
 )
 from game.sprites import Cup, Ingredient, CatchEffect, Particle
 from game.ingredient_manager import IngredientManager
 from data.score_manager import ScoreManager
+from data.recipes import evaluate_recipe
 from bci.data_reader import BCIDataReader
-from bci.filter import DeadZoneFilter, ExponentialSmoothing
+from bci.filter import DeadZoneFilter, ExponentialSmoothing, AttentionMappingCurve
 from menu import MainMenu
-from game_start_screen import GameStartScreen
 import sys
 import time
 import os
@@ -49,74 +51,59 @@ def load_chinese_font(size=36):
 
 
 def show_menu(screen):
-    """
-    显示主菜单界面
-
-    参数:
-        screen: pygame 屏幕对象
-
-    返回:
-        用户选择结果："quit" / "start" / "difficulty" / "settings"
-    """
-    font = load_chinese_font(24)  # 副标题字号，修改此值可改变副标题/提示文字大小
-    title_font = load_chinese_font(40)  # 按钮文字字号，修改此值可改变菜单按钮文字大小
+    """显示主菜单界面，返回 (result, mode)"""
+    font = load_chinese_font(24)
+    title_font = load_chinese_font(40)
     menu = MainMenu(screen, font, title_font)
     return menu.run()
 
 
-def show_game_start(screen):
-    """
-    显示游戏开始界面（等待玩家确认开始）
-
-    参数:
-        screen: pygame 屏幕对象
-
-    返回:
-        "quit" / "back" / "start"
-    """
-    font = load_chinese_font(24)  # 副标题字号
-    title_font = load_chinese_font(48)  # 标题字号，修改此值可改变开始界面标题大小
-    start_screen = GameStartScreen(screen, font, title_font)
-    return start_screen.run()
-
-
-def run_game(screen, clock):
+def run_game(screen, clock, game_mode="regular"):
     """
     运行主游戏循环
 
     参数:
         screen: pygame 屏幕对象
-        clock: pygame 时钟对象，用于控制帧率
+        clock: pygame 时钟对象
+        game_mode: 游戏模式（"regular" / "challenge" / "creative"）
 
     返回:
         "quit" / "menu"
     """
-    font = load_chinese_font(36)  # 游戏中 HUD 文字字号（分数、模式、BCI 信息）
-    hint_font = load_chinese_font(20)  # 底部提示文字字号
+    mode_config = GAME_MODES.get(game_mode, GAME_MODES[DEFAULT_GAME_MODE])
+    mode_name = mode_config["name"]
+    has_required = mode_config["has_required"]
+    free_combine = mode_config["free_combine"]
+
+    font = load_chinese_font(36)
+    hint_font = load_chinese_font(20)
+    recipe_font = load_chinese_font(28)
 
     # === 游戏对象初始化 ===
-    cup = Cup()  # 玩家控制的杯子
-    all_sprites = pygame.sprite.Group()  # 所有精灵组
+    cup = Cup()
+    all_sprites = pygame.sprite.Group()
     all_sprites.add(cup)
 
-    ingredients = pygame.sprite.Group()  # 食材精灵组
-    catch_effects = pygame.sprite.Group()  # 接住食材特效组
-    particles = pygame.sprite.Group()  # 粒子特效组
+    ingredients = pygame.sprite.Group()
+    catch_effects = pygame.sprite.Group()
+    particles = pygame.sprite.Group()
 
-    score_manager = ScoreManager()  # 分数/金钱管理器
-    ingredient_manager = IngredientManager()  # 食材生成管理器
+    score_manager = ScoreManager()
+    ingredient_manager = IngredientManager()
+    ingredient_manager.spawn_interval = mode_config["spawn_interval"] / 1000.0
 
     # === BCI 脑电设备初始化 ===
-    bci_reader = BCIDataReader()  # 脑电数据读取器（当前为模拟数据）
-    bci_available = False  # 脑电设备是否可用
+    bci_reader = BCIDataReader()
+    bci_available = False
 
     # === 信号滤波器 ===
-    dead_zone = DeadZoneFilter(
-        threshold=5
-    )  # 死区滤波器，threshold=5 表示忽略幅度 <5 的微小信号（防手抖）
-    smooth_yaw = ExponentialSmoothing(
-        alpha=0.3
-    )  # 指数平滑滤波器，alpha=0.3 控制平滑程度（越大响应越快，越小越平滑）
+    dead_zone = DeadZoneFilter(threshold=5)
+    smooth_yaw = ExponentialSmoothing(alpha=0.3)
+
+    # === 创意模式专注力映射 ===
+    attention_curve = None
+    if free_combine:
+        attention_curve = AttentionMappingCurve()
 
     # === 背景图加载 ===
     background = None
@@ -132,72 +119,82 @@ def run_game(screen, clock):
     except Exception:
         pass
 
-    # 设置当前必接食材
-    score_manager.set_required_ingredient("红茶")
+    # === 创意模式状态 ===
+    creative_ingredients = []  # 记录已接住的食材
+    recipe_result = None  # 配方评估结果
+
+    # 设置必接食材（仅常规/挑战模式）
+    if has_required:
+        score_manager.set_required_ingredient("红茶")
 
     # === 游戏状态变量 ===
     running = True
-    use_yaw_control = False  # 是否使用头动控制（False = 键盘控制）
-    last_print_time = time.time()  # 用于控制终端输出频率
+    use_yaw_control = False
+    last_print_time = time.time()
+
+    # 根据模式设置下落速度
+    from config import INGREDIENT_SPEED
+
+    original_ingredient_speed = INGREDIENT_SPEED
 
     print("=" * 50)
-    print("疯狂奶茶杯 - 游戏开始")
+    print(f"疯狂奶茶杯 - {mode_name}")
     print("=" * 50)
-    print("控制说明:")
-    print("  方向键左/右: 移动杯子")
-    print("  Y: 切换到头动控制模式（模拟）")
-    print("  K: 切换回键盘控制模式")
-    print("  ESC: 返回主菜单")
+    if free_combine:
+        print("创意模式规则：")
+        print("  没有必接食材，自由搭配")
+        print("  不同组合产生不同评分（黑暗→米其林）")
+        print("  专注力越高，评分加成越大")
+    else:
+        print("控制说明:")
+        print("  方向键左/右: 移动杯子")
+        print("  Y: 头动模式 | K: 键盘模式 | ESC: 返回菜单")
     print("=" * 50)
 
     # === 主游戏循环 ===
     while running:
-        dt = clock.tick(60)  # 限制帧率为 60fps，返回上一帧到当前的毫秒数
-        keys = pygame.key.get_pressed()  # 获取当前按下的所有键
-        dt_sec = dt / 1000.0  # 将毫秒转换为秒，用于动画计算
+        dt = clock.tick(60)
+        keys = pygame.key.get_pressed()
+        dt_sec = dt / 1000.0
 
-        # === 事件处理 ===
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return "quit"
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_y:  # Y 键：切换头动控制
+                if event.key == pygame.K_y:
                     use_yaw_control = True
                     cup.yaw_control = True
-                    print("切换到头动控制模式 (模拟)")
-                elif event.key == pygame.K_k:  # K 键：切换键盘控制
+                elif event.key == pygame.K_k:
                     use_yaw_control = False
                     cup.yaw_control = False
-                    print("切换到键盘控制模式")
-                elif event.key == pygame.K_ESCAPE:  # ESC 键：返回主菜单
+                elif event.key == pygame.K_ESCAPE:
                     return "menu"
 
         # === 获取控制信号 ===
         if bci_available:
-            # 真实 BCI 设备模式
             attention, raw_yaw = bci_reader.read_with_timeout()
         else:
-            # 模拟数据模式（无设备时使用）
             t = time.time()
-            attention = 50 + int(30 * ((t % 10) / 10))  # 模拟专注力 50~80 波动
-            raw_yaw = 20 * ((t % 8) / 4 - 1)  # 模拟偏航角 -20~20 波动
+            attention = 50 + int(30 * ((t % 10) / 10))
+            raw_yaw = 20 * ((t % 8) / 4 - 1)
 
             if int(t) % 5 == 0 and time.time() - last_print_time >= 4.9:
                 print(f"[模拟] 专注力: {attention}, Yaw: {raw_yaw:.1f}")
                 last_print_time = time.time()
 
         # === 信号处理 ===
-        filtered_yaw = dead_zone.filter(raw_yaw)  # 死区滤波：去除微小抖动
-        smoothed_yaw = smooth_yaw.smooth(filtered_yaw)  # 指数平滑：使运动更流畅
+        filtered_yaw = dead_zone.filter(raw_yaw)
+        smoothed_yaw = smooth_yaw.smooth(filtered_yaw)
 
         # === 更新杯子位置 ===
         if use_yaw_control:
-            cup.update(yaw=smoothed_yaw, dt=dt_sec)  # 头动控制模式
+            cup.update(yaw=smoothed_yaw, dt=dt_sec)
         else:
-            cup.update(keys=keys, dt=dt_sec)  # 键盘控制模式
+            cup.update(keys=keys, dt=dt_sec)
 
         # === 生成并更新食材 ===
-        ingredient = ingredient_manager.update(required_types=["红茶"])
+        required = ["红茶"] if has_required else None
+        ingredient = ingredient_manager.update(required_types=required)
         if ingredient:
             ingredients.add(ingredient)
 
@@ -208,44 +205,92 @@ def run_game(screen, clock):
         # === 碰撞检测 ===
         hits = pygame.sprite.spritecollide(cup, ingredients, True)
         for hit in hits:
-            effect = CatchEffect(hit, cup.rect)  # 创建接住特效
+            effect = CatchEffect(hit, cup.rect)
             catch_effects.add(effect)
-            for _ in range(8):  # 生成 8 个粒子
+            for _ in range(8):
                 color = INGREDIENT_COLORS.get(hit.type, (255, 200, 0))
                 particles.add(Particle(hit.rect.centerx, hit.rect.centery, color))
-            cup.trigger_bounce()  # 触发杯子弹跳动画
-            score_manager.score += 10
+            cup.trigger_bounce()
+
+            if free_combine:
+                # 创意模式：记录食材，不检查必接
+                creative_ingredients.append(hit.type)
+                score_manager.score += 10
+                # 评估当前配方
+                recipe_result = evaluate_recipe(creative_ingredients)
+            else:
+                score_manager.score += 10
+
             print(f"接住 {hit.type}！分数: {score_manager.score}")
 
         # === 渲染画面 ===
         if has_background and background:
-            screen.blit(background, (0, 0))  # 绘制背景图
+            screen.blit(background, (0, 0))
         else:
-            screen.fill((255, 255, 255))  # 白色背景（无图片时）
+            screen.fill((255, 255, 255))
 
-        all_sprites.draw(screen)  # 绘制杯子
-        ingredients.draw(screen)  # 绘制食材
-        catch_effects.draw(screen)  # 绘制接住特效
-        particles.draw(screen)  # 绘制粒子特效
+        all_sprites.draw(screen)
+        ingredients.draw(screen)
+        catch_effects.draw(screen)
+        particles.draw(screen)
 
-        # 绘制 HUD 信息
+        # === 绘制 HUD ===
         score_text = font.render(f"分数: {score_manager.score}", True, (0, 0, 0))
         screen.blit(score_text, (10, 10))
 
-        mode_str = "头动控制" if use_yaw_control else "键盘控制"
-        mode_text = font.render(f"模式: {mode_str}", True, (0, 100, 0))
+        # 模式名称
+        mode_text = font.render(f"{mode_name}", True, (100, 50, 150))
         screen.blit(mode_text, (10, 50))
 
-        bci_text = font.render(
-            f"专注力: {attention}  头动: {smoothed_yaw:.1f}", True, (100, 0, 0)
-        )
+        # BCI/专注力信息
+        if free_combine and attention_curve:
+            multiplier = attention_curve.map_attention(attention)
+            tier = attention_curve.get_rating_tier(attention)
+            bci_text = font.render(
+                f"专注力: {attention} ({tier} x{multiplier:.2f})", True, (100, 0, 0)
+            )
+        else:
+            bci_text = font.render(
+                f"专注力: {attention}  头动: {smoothed_yaw:.1f}", True, (100, 0, 0)
+            )
         screen.blit(bci_text, (10, 90))
 
-        hint1 = hint_font.render(
-            "方向键: 移动杯子 | Y: 头动模式 | K: 键盘模式 | ESC: 返回菜单",
-            True,
-            (50, 50, 50),
-        )
+        # 创意模式配方显示
+        if free_combine and recipe_result:
+            recipe_name = recipe_result["recipe_name"]
+            rating = recipe_result["rating"]
+            total_score = recipe_result["total_score"]
+
+            # 配方名称
+            name_surf = recipe_font.render(
+                f"{rating['emoji']} {recipe_name}", True, rating["color"]
+            )
+            screen.blit(name_surf, (SCREEN_WIDTH // 2 - name_surf.get_width() // 2, 10))
+
+            # 评分等级
+            grade_surf = recipe_font.render(
+                f"评分: {rating['name']} ({total_score})", True, rating["color"]
+            )
+            screen.blit(
+                grade_surf, (SCREEN_WIDTH // 2 - grade_surf.get_width() // 2, 45)
+            )
+
+            # 已接食材列表
+            if creative_ingredients:
+                ing_text = hint_font.render(
+                    f"食材: {' + '.join(creative_ingredients)}", True, (80, 80, 80)
+                )
+                screen.blit(
+                    ing_text, (SCREEN_WIDTH // 2 - ing_text.get_width() // 2, 80)
+                )
+
+        # 底部提示
+        if free_combine:
+            hint_text = "自由搭配，创造你的专属奶茶 | ESC 返回"
+        else:
+            hint_text = "方向键: 移动 | Y: 头动 | K: 键盘 | ESC: 返回"
+
+        hint1 = hint_font.render(hint_text, True, (50, 50, 50))
         screen.blit(hint1, (10, SCREEN_HEIGHT - 40))
 
         pygame.display.flip()
@@ -261,27 +306,20 @@ def main():
     clock = pygame.time.Clock()
 
     while True:
-        # 1. 显示主菜单
-        result = show_menu(screen)
+        # 1. 显示主菜单（含模式选择）
+        result, mode = show_menu(screen)
 
         if result == "quit":
             break
-        elif result == "difficulty":
-            print("难度设置 - 待实现")
         elif result == "settings":
             print("游戏设置 - 待实现")
         elif result == "start":
-            # 2. 显示开始确认界面
-            result2 = show_game_start(screen)
-            if result2 == "quit":
+            # 2. 进入主游戏
+            game_result = run_game(screen, clock, game_mode=mode)
+            if game_result == "quit":
                 break
-            elif result2 == "start":
-                # 3. 进入主游戏
-                game_result = run_game(screen, clock)
-                if game_result == "quit":
-                    break
-                elif game_result == "menu":
-                    continue
+            elif game_result == "menu":
+                continue
 
     pygame.quit()
     sys.exit()
