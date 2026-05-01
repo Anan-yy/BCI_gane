@@ -67,6 +67,9 @@ class MenuItem:
 
 
 class GameStartScreen:
+    """
+    游戏开始界面，展示游戏标题和说明，等待玩家按下回车键开始游戏
+    """
     def __init__(self, screen, font, title_font):
         self.screen = screen
         self.font = font
@@ -82,6 +85,9 @@ class GameStartScreen:
         self.buttons = []
 
     def _load_bg(self):
+        """
+        加载背景图,如果没有则返回None
+        """
         path = os.path.join(IMAGES_DIR, "奶茶店2.png")
         if os.path.exists(path):
             img = pygame.image.load(path).convert()
@@ -89,6 +95,9 @@ class GameStartScreen:
         return None
 
     def run(self):
+        """
+        主循环，等待玩家按下回车键开始游戏
+        """
         while self.running:
             dt = self.clock.tick(60) / 1000.0
             for event in pygame.event.get():
@@ -132,6 +141,7 @@ class GameStartScreen:
         overlay.fill((0, 0, 0, 80))
         self.screen.blit(overlay, (0, 0))
 
+        # 绘制标题和说明
         title_offset = math.sin(self.phase) * 5
         title_surf = self.title_font.render("选择你的奶茶配方", True, (255, 230, 180))
         title_shadow = self.title_font.render("选择你的奶茶配方", True, (80, 40, 10))

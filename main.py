@@ -47,7 +47,8 @@ def show_menu(screen):
 
 def show_game_start(screen):
     font = load_chinese_font(24)
-    title_font = load_chinese_font(36)
+    # 调整标题字体大小
+    title_font = load_chinese_font(48)
     start_screen = GameStartScreen(screen, font, title_font)
     return start_screen.run()
 
