@@ -16,9 +16,12 @@ from config import (
     FOCUS_TEAPOT_IMG,
     BACKGROUND_IMG,
     GAME_DURATION,
+    PATIENCE_BAR_SIZE,
+    CUP_HEIGHT,
 )
 from game.sprites import Cup, Ingredient, CatchEffect, Particle, MissEffect
 from game.ingredient_manager import IngredientManager
+from game.patience_bar import PatienceBar
 from data.score_manager import ScoreManager
 from data.recipes import evaluate_recipe
 from bci.data_reader import BCIDataReader
@@ -225,6 +228,11 @@ def run_game(screen, clock, game_mode="regular"):
     ingredient_manager = IngredientManager()
     ingredient_manager.spawn_interval = mode_config["spawn_interval"] / 1000.0
 
+    # 调整耐心条位置
+    patience_bar_x = 20 # SCREEN_WIDTH
+    patience_bar_y = SCREEN_HEIGHT - CUP_HEIGHT - PATIENCE_BAR_SIZE[1] - 50 # 调整耐心条垂直位置，保持在杯子上方
+    patience_bar = PatienceBar(patience_bar_x, patience_bar_y)
+
     # === BCI 脑电设备初始化 ===
     bci_reader = BCIDataReader()
     bci_available = False
@@ -381,6 +389,7 @@ def run_game(screen, clock, game_mode="regular"):
         catch_effects.update(dt=dt_sec)
         miss_effects.update(dt=dt_sec)
         particles.update(dt=dt_sec)
+        patience_bar.update(dt_sec)
 
         # === 碰撞检测 ===
         hits = pygame.sprite.spritecollide(cup, ingredients, False)
@@ -413,6 +422,7 @@ def run_game(screen, clock, game_mode="regular"):
                     color = INGREDIENT_COLORS.get(hit.type, (255, 200, 0))
                     particles.add(Particle(hit.rect.centerx, hit.rect.centery, color))
                 cup.trigger_bounce()
+                patience_bar.on_catch()
 
                 if free_combine:
                     creative_ingredients.append(hit.type)
@@ -468,6 +478,8 @@ def run_game(screen, clock, game_mode="regular"):
             else:
                 focus_teapot.update(0)
             focus_teapot.draw(screen)
+
+        patience_bar.draw(screen)
 
         # BCI/专注力信息 (文字辅助显示)
         if bci_mode and attention is not None:

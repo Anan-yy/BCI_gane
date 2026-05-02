@@ -103,8 +103,8 @@ class Cup(pygame.sprite.Sprite):
         self.rect.left = max(0, self.rect.left)
         self.rect.right = min(SCREEN_WIDTH, self.rect.right)
 
-        # 更新倾斜：目标角度 ±5°（5.0 为最大倾斜角度），0.2 为平滑过渡系数
-        target_tilt = move_dir * 5.0
+        # 更新倾斜：目标角度 ±12°（5.0 为最大倾斜角度），0.2 为平滑过渡系数
+        target_tilt = move_dir * 12.0
         self._tilt += (target_tilt - self._tilt) * 0.2
 
         # 更新弹跳动画

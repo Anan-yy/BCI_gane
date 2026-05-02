@@ -49,6 +49,9 @@ BADGE_IMGS = [  # 徽章图片列表，按等级排列
     os.path.join(IMAGES_DIR, "badges", "badge2.png"),
     os.path.join(IMAGES_DIR, "badges", "badge3.png"),
 ]
+PATIENCE_BAR_IMG = os.path.join(IMAGES_DIR, "other", "耐心条.png")
+PATIENCE_BAR_SIZE = (350, 35)
+PATIENCE_BAR_TIMEOUT = 90.0  # 接住小料的超时时间（秒）
 
 # ============================================================
 # 中文字体配置（按加载优先级排列）
