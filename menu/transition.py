@@ -197,6 +197,7 @@ class StartTransition:
         self.flash_start_time = 0
         self.flash_duration = 500  # 闪黑持续 0.5 秒
         self.miss_effects = []  # 失败特效列表
+        self.clicked = False  # 是否已点击触发失败动画
 
     def run(self):
         while True:
@@ -208,6 +209,8 @@ class StartTransition:
                     exit()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return
+                if event.type == pygame.MOUSEBUTTONDOWN and self.phase == "falling":
+                    self._trigger_all_miss()
 
             # 获取鼠标位置用于移动
             keys = pygame.key.get_pressed()
@@ -233,6 +236,16 @@ class StartTransition:
 
             pygame.display.flip()
 
+    def _trigger_all_miss(self):
+        """触发所有当前屏幕内食材的失败动画"""
+        if self.clicked:
+            return
+        self.clicked = True
+        for ing in self.ingredients:
+            self.miss_effects.append(MissEffect(ing.x, ing.y, ing.color))
+        self.ingredients.clear()
+        self.ingredient_count = self.max_ingredients
+
     def _update_falling(self, dt, target_x):
         """掉落阶段"""
         # 桃色背景
@@ -244,14 +257,17 @@ class StartTransition:
             ing.target_x = self.cup_x
 
         # 生成食材
-        self.spawn_timer += dt * 1000
-        if (
-            self.spawn_timer > self.spawn_interval
-            and self.ingredient_count < self.max_ingredients
-        ):
-            self.ingredients.append(FallingIngredient(self.cup_x, self.cup_y, size=80))
-            self.spawn_timer = 0
-            self.ingredient_count += 1
+        if not self.clicked:
+            self.spawn_timer += dt * 1000
+            if (
+                self.spawn_timer > self.spawn_interval
+                and self.ingredient_count < self.max_ingredients
+            ):
+                self.ingredients.append(
+                    FallingIngredient(self.cup_x, self.cup_y, size=80)
+                )
+                self.spawn_timer = 0
+                self.ingredient_count += 1
 
         # 更新食材和溅射效果
         # 判定线：杯子高度的 4/5 处
