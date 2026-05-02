@@ -3,6 +3,7 @@
 import pygame
 import math
 import os
+import random
 from config import (
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
@@ -13,7 +14,7 @@ from config import (
     BADGE_IMGS,
 )
 from menu.components import MenuItem, Badge
-from menu.particles import FloatingItem
+from menu.particles import FloatingItem, SteamParticle
 from menu.mode_selector import ModeSelector
 from menu.bci_button import BCIModeButton
 from menu.screens.game_settings import GameSettingsScreen
@@ -35,6 +36,9 @@ class MainMenu:
             FloatingItem(SCREEN_WIDTH, SCREEN_HEIGHT, c)
             for c in list(INGREDIENT_COLORS.values()) + [(255, 180, 100)] * 3
         ]
+        self.steam_particles = []
+        self.steam_spawn_timer = 0
+        self.bg_breathe_phase = 0.0
 
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
         btn_spacing = 90
@@ -74,6 +78,7 @@ class MainMenu:
 
         self.title_y = 100
         self.title_phase = 0.0
+        self.bg_breathe_scale = 1.0
 
     def _load_bg(self):
         path = os.path.join(IMAGES_DIR, "backgrounds", "奶茶店1.png")
@@ -140,17 +145,38 @@ class MainMenu:
         for item in self.floating_items:
             item.update()
 
+        self.bg_breathe_phase += dt * 0.5
+        self.bg_breathe_scale = 1.0 + math.sin(self.bg_breathe_phase) * 0.008
+
+        self.steam_spawn_timer += dt
+        if self.steam_spawn_timer > 0.05:
+            self.steam_spawn_timer = 0
+            spawn_x = random.uniform(SCREEN_WIDTH * 0.3, SCREEN_WIDTH * 0.7)
+            self.steam_particles.append(SteamParticle(spawn_x, SCREEN_HEIGHT + 10))
+        self.steam_particles = [p for p in self.steam_particles if p.update()]
+
         self.title_phase += dt * 2
 
     def _draw(self, dt):
         if self.bg:
-            self.screen.blit(self.bg, (0, 0))
+            scale_offset = (SCREEN_WIDTH * self.bg_breathe_scale - SCREEN_WIDTH) // 2
+            scaled_bg = pygame.transform.scale(
+                self.bg,
+                (
+                    int(SCREEN_WIDTH * self.bg_breathe_scale),
+                    int(SCREEN_HEIGHT * self.bg_breathe_scale),
+                ),
+            )
+            self.screen.blit(scaled_bg, (-scale_offset, -scale_offset))
         else:
             self.screen.fill((255, 240, 220))
 
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 100))
         self.screen.blit(overlay, (0, 0))
+
+        for p in self.steam_particles:
+            p.draw(self.screen)
 
         self.badge.draw(self.screen)
 
