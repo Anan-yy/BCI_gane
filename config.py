@@ -44,6 +44,11 @@ INGREDIENT_IMGS = {  # 食材图片字典
     "仙草": os.path.join(IMAGES_DIR, "ingredients", "grass_jelly.png"),
     "秘方": os.path.join(IMAGES_DIR, "ingredients", "secret_recipe.png"),
 }
+BADGE_IMGS = [  # 徽章图片列表，按等级排列
+    os.path.join(IMAGES_DIR, "badges", "badge1.png"),
+    os.path.join(IMAGES_DIR, "badges", "badge2.png"),
+    os.path.join(IMAGES_DIR, "badges", "badge3.png"),
+]
 
 # ============================================================
 # 中文字体配置（按加载优先级排列）

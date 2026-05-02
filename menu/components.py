@@ -3,6 +3,7 @@
 import pygame
 import math
 import random
+import os
 
 
 class ClickParticle:
@@ -127,3 +128,96 @@ class MenuItem:
     @staticmethod
     def _draw_rounded_rect(surface, rect, color, radius):
         pygame.draw.rect(surface, color, rect, border_radius=radius)
+
+
+class Badge:
+    """徽章组件，支持点击粒子爆开效果和悬停动画"""
+
+    def __init__(self, images, x, y, size=(60, 60)):
+        self.images = images
+        self.x = x
+        self.y = y
+        self.size = size
+        self.level = 0
+        self.badge_surf = None
+        self.hovered = False
+        self.scale_t = 0.0
+        self.click_particles = []
+        self.hover_particles = []
+        self._load_badge()
+
+    def _load_badge(self):
+        if self.level < len(self.images):
+            path = self.images[self.level]
+            if path and os.path.exists(path):
+                try:
+                    img = pygame.image.load(path).convert_alpha()
+                    self.badge_surf = pygame.transform.scale(img, self.size)
+                    return
+                except Exception:
+                    pass
+        self.badge_surf = None
+
+    def set_level(self, level):
+        self.level = level
+        self._load_badge()
+
+    def get_rect(self):
+        if self.badge_surf is None:
+            return pygame.Rect(self.x, self.y, self.size[0], self.size[1])
+        w, h = self.badge_surf.get_size()
+        s = 1.0 + 0.1 * self.scale_t
+        w, h = int(w * s), int(h * s)
+        return pygame.Rect(self.x, self.y, w, h)
+
+    def update(self, dt=0.016):
+        target = 1.0 if self.hovered else 0.0
+        self.scale_t += (target - self.scale_t) * 0.15
+        self.click_particles = [p for p in self.click_particles if p.update(dt)]
+        self.hover_particles = [p for p in self.hover_particles if p.update(dt)]
+
+    def draw(self, screen):
+        s = 1.0 + 0.1 * self.scale_t
+        if self.badge_surf:
+            ow, oh = self.badge_surf.get_size()
+            nw, nh = int(ow * s), int(oh * s)
+            scaled = pygame.transform.scale(self.badge_surf, (nw, nh))
+            screen.blit(scaled, (self.x, self.y))
+        else:
+            rect = self.get_rect()
+            pygame.draw.rect(screen, (255, 215, 0), rect, border_radius=8)
+
+        for p in self.hover_particles:
+            p.draw(screen)
+        for p in self.click_particles:
+            p.draw(screen)
+
+    def trigger_click(self):
+        cx = self.x + self.size[0] // 2
+        cy = self.y + self.size[1] // 2
+        burst_colors = [(255, 215, 0), (255, 255, 255), (255, 180, 50)]
+        for _ in range(20):
+            color = random.choice(burst_colors)
+            p = ClickParticle(cx, cy, color)
+            p.size = random.randint(2, 6)
+            p.vx *= 1.5
+            p.vy *= 1.5
+            p.decay = random.uniform(1.0, 2.0)
+            self.click_particles.append(p)
+        for _ in range(10):
+            color = (255, 255, 200)
+            p = ClickParticle(cx, cy, color)
+            p.size = random.randint(1, 3)
+            p.vx *= 2.0
+            p.vy *= 2.0
+            p.decay = random.uniform(0.8, 1.5)
+            self.click_particles.append(p)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEMOTION:
+            self.hovered = self.get_rect().collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.get_rect().collidepoint(event.pos):
+                self.trigger_click()
+                return True
+        return False

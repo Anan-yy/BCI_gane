@@ -10,8 +10,9 @@ from config import (
     IMAGES_DIR,
     INGREDIENT_COLORS,
     GAME_MODES,
+    BADGE_IMGS,
 )
-from menu.components import MenuItem
+from menu.components import MenuItem, Badge
 from menu.particles import FloatingItem
 from menu.mode_selector import ModeSelector
 from menu.bci_button import BCIModeButton
@@ -29,6 +30,7 @@ class MainMenu:
         self.current_mode = "regular"
 
         self.bg = self._load_bg()
+        self.badge = Badge(BADGE_IMGS, SCREEN_WIDTH - 85, 12, size=(80, 80))
         self.floating_items = [
             FloatingItem(SCREEN_WIDTH, SCREEN_HEIGHT, c)
             for c in list(INGREDIENT_COLORS.values()) + [(255, 180, 100)] * 3
@@ -104,6 +106,8 @@ class MainMenu:
                         self.running = False
                         self.result = "settings"
                 else:
+                    if self.badge.handle_event(event):
+                        pass
                     if self.start_btn.handle_event(event):
                         self.running = False
                         self.result = "start"
@@ -127,6 +131,7 @@ class MainMenu:
         return self.result, self.current_mode
 
     def _update(self, dt):
+        self.badge.update(dt)
         self.start_btn.update(dt)
         self.mode_selector.update(dt)
         self.bci_btn.update(dt)
@@ -146,6 +151,8 @@ class MainMenu:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 100))
         self.screen.blit(overlay, (0, 0))
+
+        self.badge.draw(self.screen)
 
         for item in self.floating_items:
             item.draw(self.screen)
